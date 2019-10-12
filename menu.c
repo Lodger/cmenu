@@ -25,12 +25,22 @@ int main(int argc, char *argv[])
 	wv.width = 1;
 	wv.height = 1;
 
-	wv.window = XCreateSimpleWindow(xv.display,
+	XSetWindowAttributes wa;
+	wa.override_redirect = True;
+	wa.background_pixel = WhitePixel(xv.display, xv.screen_num);
+	wa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
+
+	wv.window = XCreateWindow(xv.display, RootWindow(xv.display, xv.screen_num),
+	                          0, 0, 100, 100, 0, CopyFromParent, CopyFromParent,
+	                          xv.visual, CWOverrideRedirect | CWBackPixel | CWEventMask, &wa);
+
+	/* old window creation */
+	/*wv.window = XCreateSimpleWindow(xv.display,
 	                                RootWindow(xv.display, xv.screen_num),
 	                                wv.xwc.x, wv.xwc.y, wv.width, wv.height,
 	                                0,
 	                                BlackPixel(xv.display, xv.screen_num),
-	                                WhitePixel(xv.display, xv.screen_num));
+	                                WhitePixel(xv.display, xv.screen_num));*/
 	init_xft(&xv, &wv, &xftv);
 
 	menu_run(&xv, &wv, &xftv, argv, argc);
@@ -122,7 +132,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	/* filtered[0] is user input + decorations */
 	*filtered = malloc(INPUTLEN * sizeof(char));
 
-	XSelectInput(xv->display, wv->window, ExposureMask | KeyPressMask);
+	//XSelectInput(xv->display, wv->window, ExposureMask | KeyPressMask);
 
 	XEvent e;
 	KeySym keysym;
@@ -167,7 +177,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 
 		/* status is used to determine the shift amount */
 		draw_menu(xv, wv, xftv, filtered,
-		          (strlen(*items) > 0) ? count : 1, count);
+		          (strlen(*items) > 0) ? count : 1, status);
 	}
 }
 
@@ -191,6 +201,7 @@ int handle_key(KeySym keysym, int state, char *line)
 	case XK_Return:
 		return EXIT;
 		break;
+	case XK_Super_L:
 	case XK_Control_L:
 	case XK_Control_R:
 	case XK_Shift_R:
