@@ -195,6 +195,11 @@ int handle_key(KeySym keysym, int state, char *line)
 		case 'n':
 			return 1;
 			break;
+		case'h':
+			if (pos - line > 0)
+				*--pos = '\0';
+			return 0;
+			break;
 		}
 
 	switch(keysym) {
