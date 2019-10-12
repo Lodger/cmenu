@@ -2,7 +2,7 @@ CC := cc
 CCFLAGS := -lX11 -lXft -Os
 LDFLAGS := `pkg-config --cflags freetype2`
 DEBUGFLAGS := -fsanitize=undefined -fsanitize=address -fno-sanitize-recover
-DEPS := menu.c menu.h
+DEPS := menu.c menu.h config.h
 TARGETS := menu
 
 all: $(TARGETS)
