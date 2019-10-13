@@ -294,26 +294,6 @@ void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 {
 	count = move_and_resize(xv, wv, xftv, items, count);
 
-	/* update the mouse and window location, this should really be in
-	   move_and_resize, but this needs to be done to get the new count
-	   value
-	if (count * xftv->font->height > xv->screen_height - wv->xwc.y)
-		if (count * xftv->font->height < xv->screen_height) {
-			XWarpPointer(xv->display, None, None,
-			             wv->xwc.x, wv->xwc.y,
-			             0, 0, 0, xv->screen_height - wv->xwc.y -
-			                      count * xftv->font->height);
-			wv->xwc.y = xv->screen_height - real;
-		} else {
-			XWarpPointer(xv->display, None, None,
-			             wv->xwc.x, wv->xwc.y,
-			             0, 0, 0, wv->xwc.y * -1);
-			wv->xwc.y = 0;
-
-			count = (xv->screen_height - wv->xwc.y) /
-			         xftv->font->height;
-		} */
-
 	static int offset = 0;
 	if (count > 1) {
 		offset = (offset + shift) % (count-1);
