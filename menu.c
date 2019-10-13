@@ -24,7 +24,6 @@ int main(int argc, char *argv[])
 	if (init_x(&xv) == 1)
 		return 1;
 
-	/* load default window options */
 	get_pointer(&xv, &wv.xwc.x, &wv.xwc.y);
 	wv.width = 1;
 	wv.height = 1;
@@ -170,7 +169,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 
 			/* menu exits here */
 			if (status == EXIT) {
-				puts(count == 1 ? *items : filtered[1]);
+				puts(count > 1 ? filtered[1] : *items);
 				free(*filtered);
 				return;
 			}
@@ -187,7 +186,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		/* filter everything in items through user input*/
 		filteredp = filtered+1;
 		for (char **itemsp = items+1; *itemsp; ++itemsp)
-			if (strstr(*itemsp, *items) == *itemsp)
+			if (strlen(*items) && strstr(*itemsp, *items) == *itemsp)
 				*filteredp++ = *itemsp;
 		//*filteredp = '\0';
 		count = filteredp - filtered;
