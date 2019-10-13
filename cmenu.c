@@ -14,7 +14,9 @@ int main(int argc, char *argv[])
 {
 	/* parse argv */
 	for (int i = 1; i < argc; ++i)
-		if (!strcmp(argv[i], "-b"))
+		if (!strcmp(argv[i], "-v"))
+			visible = True;
+		else if (!strcmp(argv[i], "-b"))
 			wincolors[bgcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-sb"))
 			wincolors[sbgcolor] = argv[++i];
@@ -24,13 +26,21 @@ int main(int argc, char *argv[])
 			wincolors[stextcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-f"))
 			fontname = argv[++i];
-		else if (!strcmp(argv[i], "-v"))
-			visible = True;
+		else if (!strcmp(argv[i], "-ip"))
+			inputprefix = argv[++i];
+		else if (!strcmp(argv[i], "-is"))
+			inputsuffix = argv[++i];
+		else if (!strcmp(argv[i], "-p"))
+			inputprompt = argv[++i];
 		else {
 			printf("Unknown option: \"%s\"\n", argv[i]);
-			fputs("Usage: <args> | cmenu [-b color] [-sb color]\n"
+			fputs("Usage: <args> | cmenu [-v]\n"
+			      "                      [-b color] [-sb color]\n"
 			      "                      [-t color] [-st color]\n"
-			      "                      [-f font] [-v] \n", stderr);
+			      "                      [-f font]\n"
+			      "                      [-ip string]\n"
+			      "                      [-is string]\n"
+			      "                      [-p string]\n", stderr);
 			return 1;
 		}
 
