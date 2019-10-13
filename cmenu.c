@@ -317,16 +317,17 @@ void move_and_resize(struct XValues *xv, struct WinValues *wv,
 	wv->height = xftv->font->height * count + border * 2;
 
 	XGlyphInfo ext;
-	char *longest;
 
-	for (longest = *items; count--; ++items)
-		if (strlen(*items) > strlen(longest))
-			longest = *items;
+	int longest;
+	for (longest = 0; count--; ++items) {
+		XftTextExtentsUtf8(xv->display, xftv->font, *items,
+				   strlen(*items), &ext);
 
-	XftTextExtentsUtf8(xv->display, xftv->font, longest,
-	                strlen(longest), &ext);
-
-	wv->width = ext.width + border * 2;
+		if (ext.width > longest)
+			longest = ext.width;
+	}
+		
+	wv->width = longest + border * 2;
 	XResizeWindow(xv->display, wv->window, wv->width, wv->height);
 }
 
