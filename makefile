@@ -24,7 +24,7 @@ clean:
 install:
 	mv $(TARGETS) $(DESTDIR)
 	cp $(MANPAGE) $(MANDIR)
-	gzip $(MANDIR)/$(MANPAGE)
+	gzip -f $(MANDIR)/$(MANPAGE)
 
 $(TARGETS): $(DEPS)
 	@echo 'compiling...'
