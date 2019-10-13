@@ -5,6 +5,8 @@ DEBUGFLAGS := -fsanitize=undefined -fsanitize=address -fno-sanitize-recover -ggd
 DEPS := cmenu.c cmenu.h config.h
 TARGETS := cmenu
 
+DESTDIR := /usr/bin
+
 all: $(TARGETS)
 
 debug: $(DEPS)
@@ -13,7 +15,10 @@ debug: $(DEPS)
 	@echo 'done.'
 
 clean:
-	rm -f $(TARGETS)
+	rm -f $(TARGETS) $(DESTDIR)/$(TARGETS)
+
+install:
+	mv $(TARGETS) $(DESTDIR)
 
 $(TARGETS): $(DEPS)
 	@echo 'compiling...'
