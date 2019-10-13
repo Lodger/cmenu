@@ -24,11 +24,13 @@ int main(int argc, char *argv[])
 			wincolors[stextcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-f"))
 			fontname = argv[++i];
+		else if (!strcmp(argv[i], "-v"))
+			visible = True;
 		else {
 			printf("Unknown option: \"%s\"\n", argv[i]);
 			fputs("Usage: <args> | cmenu [-b color] [-sb color]\n"
 			      "                      [-t color] [-st color]\n"
-			      "                      [-f font]\n", stderr);
+			      "                      [-f font] [-v] \n", stderr);
 			return 1;
 		}
 
@@ -210,14 +212,17 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		/* filter everything in items through user input*/
 		filteredp = filtered+1;
 		for (char **itemsp = items+1; *itemsp; ++itemsp)
-			if (strlen(*items) && strstr(*itemsp, *items) == *itemsp)
+			if ((strlen(*items) || visible) &&
+			    strstr(*itemsp, *items) == *itemsp)
 				*filteredp++ = *itemsp;
-		//*filteredp = '\0';
 		count = filteredp - filtered;
 
 		/* status is used to determine the shift amount */
-		draw_menu(xv, wv, xftv, filtered,
-		          (strlen(*items) > 0) ? count : 1, status);
+		if (visible)
+			draw_menu(xv, wv, xftv, filtered, count, status);
+		else
+			draw_menu(xv, wv, xftv, filtered,
+				  (strlen(*items) > 0) ? count : 1, status);
 	}
 }
 
