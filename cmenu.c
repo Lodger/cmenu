@@ -292,14 +292,14 @@ int handle_key(KeySym keysym, int state, char *line)
 void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
                char *items[], int count, int shift)
 {
-	count = move_and_resize(xv, wv, xftv, items, count);
-
 	static int offset = 0;
 	if (count > 1) {
 		offset = (offset + shift) % (count-1);
 		for (int i = abs(offset); i > 0; --i)
 			rotate_array(items+1, count-1, offset);
 	}
+
+	count = move_and_resize(xv, wv, xftv, items, count);
 
 	XClearWindow(xv->display, wv->window);
 	draw_items(xftv, items, count);
@@ -382,7 +382,6 @@ void draw_items(struct XftValues *xftv, char *items[], int count)
 
 	int line;
 	for (line = ascent + border; count--; line += height, ++items) {
-		printf("drawing string \"%s\" at %d, %d\n", *items, border, line);
 		XftDrawStringUtf8(xftv->draw, &xftv->colors[textcolor],
 		                  xftv->font, border, line, *items,
 		                  strlen(*items));
