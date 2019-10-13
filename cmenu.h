@@ -14,6 +14,8 @@
 struct XValues {
 	Display *display;
 	int screen_num;
+	unsigned screen_width;
+	unsigned screen_height;
 	Visual *visual;
 	Colormap colormap;
 };
@@ -54,7 +56,7 @@ void draw_menu(struct XValues *xv, struct WinValues *wv,
                struct XftValues *xftv, char *items[], int count, int shift);
 void draw_selected(struct XValues *xv, struct WinValues *wv,
                       struct XftValues *xftv, char *line);
-void move_and_resize(struct XValues *xv, struct WinValues *wv,
+int move_and_resize(struct XValues *xv, struct WinValues *wv,
                      struct XftValues *xftv, char *items[], int count);
 void draw_items(struct XftValues *xftv, char *items[], int count);
 void rotate_array(char **array, int count, int dir);

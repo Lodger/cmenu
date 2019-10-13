@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
 	XSetWindowAttributes wa;
 	wa.override_redirect = True;
 	wa.background_pixel = WhitePixel(xv.display, xv.screen_num);
-	wa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
+	wa.event_mask = ExposureMask | KeyPressMask;
 
 	wv.window = XCreateWindow(xv.display, RootWindow(xv.display, xv.screen_num),
 	                          0, 0, 100, 100, 0, CopyFromParent, CopyFromParent,
@@ -115,6 +115,8 @@ int init_x(struct XValues *xv)
 		return 1;
 	}
 	xv->screen_num = DefaultScreen(xv->display);
+	xv->screen_width = DisplayWidth(xv->display, xv->screen_num);
+	xv->screen_height = DisplayHeight(xv->display, xv->screen_num);
 	xv->visual = DefaultVisual(xv->display, xv->screen_num);
 	xv->colormap = DefaultColormap(xv->display, xv->screen_num);
 
@@ -184,7 +186,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	/* filtered[0] is user input + decorations */
 	*filtered = malloc(INPUTLEN * sizeof(char));
 
-	//XSelectInput(xv->display, wv->window, ExposureMask | KeyPressMask);
+	XSelectInput(xv->display, wv->window, ExposureMask | KeyPressMask);
 
 	XEvent e;
 	KeySym keysym;
@@ -287,9 +289,31 @@ int handle_key(KeySym keysym, int state, char *line)
 	return 0;
 }
 
-void draw_menu(struct XValues *xv, struct WinValues *wv,struct XftValues *xftv,
+void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
                char *items[], int count, int shift)
 {
+	count = move_and_resize(xv, wv, xftv, items, count);
+
+	/* update the mouse and window location, this should really be in
+	   move_and_resize, but this needs to be done to get the new count
+	   value
+	if (count * xftv->font->height > xv->screen_height - wv->xwc.y)
+		if (count * xftv->font->height < xv->screen_height) {
+			XWarpPointer(xv->display, None, None,
+			             wv->xwc.x, wv->xwc.y,
+			             0, 0, 0, xv->screen_height - wv->xwc.y -
+			                      count * xftv->font->height);
+			wv->xwc.y = xv->screen_height - real;
+		} else {
+			XWarpPointer(xv->display, None, None,
+			             wv->xwc.x, wv->xwc.y,
+			             0, 0, 0, wv->xwc.y * -1);
+			wv->xwc.y = 0;
+
+			count = (xv->screen_height - wv->xwc.y) /
+			         xftv->font->height;
+		} */
+
 	static int offset = 0;
 	if (count > 1) {
 		offset = (offset + shift) % (count-1);
@@ -298,7 +322,6 @@ void draw_menu(struct XValues *xv, struct WinValues *wv,struct XftValues *xftv,
 	}
 
 	XClearWindow(xv->display, wv->window);
-	move_and_resize(xv, wv, xftv, items, count);
 	draw_items(xftv, items, count);
 
 	if (count > 1)
@@ -323,11 +346,31 @@ void rotate_array(char **array, int count, int dir)
 	}
 }
 
-void move_and_resize(struct XValues *xv, struct WinValues *wv,
+int move_and_resize(struct XValues *xv, struct WinValues *wv,
                      struct XftValues *xftv, char *items[], int count)
 {
-	/* move window to mouse */
-	XConfigureWindow(xv->display, wv->window, CWX | CWY, &wv->xwc);
+	int total_displayed;
+
+	/* if necessary, move and clip the window */
+	if (count * xftv->font->height > xv->screen_height - wv->xwc.y)
+		if (count * xftv->font->height < xv->screen_height) {
+			XWarpPointer(xv->display, None, None,
+			             wv->xwc.x, wv->xwc.y,
+			             0, 0, 0, xv->screen_height - wv->xwc.y -
+			                      count * xftv->font->height);
+			wv->xwc.y = xv->screen_height -
+			            (count * xftv->font->height);
+		} else {
+			XWarpPointer(xv->display, None, None,
+			             wv->xwc.x, wv->xwc.y,
+			             0, 0, 0, wv->xwc.y * -1);
+			wv->xwc.y = 0;
+
+			/* now clip the menu */
+			count = (xv->screen_height - wv->xwc.y) /
+			         xftv->font->height;
+		}
+	total_displayed = count;
 
 	wv->height = xftv->font->height * count + border * 2;
 
@@ -344,6 +387,10 @@ void move_and_resize(struct XValues *xv, struct WinValues *wv,
 		
 	wv->width = longest + border * 2;
 	XResizeWindow(xv->display, wv->window, wv->width, wv->height);
+
+	/* update window location */
+	XConfigureWindow(xv->display, wv->window, CWX | CWY, &wv->xwc);
+	return total_displayed;
 }
 
 void draw_items(struct XftValues *xftv, char *items[], int count)
@@ -355,6 +402,7 @@ void draw_items(struct XftValues *xftv, char *items[], int count)
 
 	int line;
 	for (line = ascent + border; count--; line += height, ++items) {
+		printf("drawing string \"%s\" at %d, %d\n", *items, border, line);
 		XftDrawStringUtf8(xftv->draw, &xftv->colors[textcolor],
 		                  xftv->font, border, line, *items,
 		                  strlen(*items));
@@ -366,9 +414,11 @@ void draw_selected(struct XValues *xv, struct WinValues *wv,
 {
 	int y, lheight;
 
-	y = xftv->font->ascent + xftv->font->descent;
+	y = xftv->font->ascent + xftv->font->descent + border;
 	lheight = xftv->font->ascent + xftv->font->height + border;
-	XftDrawRect(xftv->draw, &xftv->colors[sbgcolor], 0, y, wv->width, y);
+
+	XftDrawRect(xftv->draw, &xftv->colors[sbgcolor], 0, y, wv->width, y - border);
+
 	XftDrawStringUtf8(xftv->draw, &xftv->colors[stextcolor], xftv->font,
 	                  border, lheight, line, strlen(line));
 }
