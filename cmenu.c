@@ -10,9 +10,6 @@
 #include "cmenu.h"
 #include "config.h"
 
-void show_usage(void) {
-}
-
 int main(int argc, char *argv[])
 {
 	/* parse argv */
