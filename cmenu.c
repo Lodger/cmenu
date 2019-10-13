@@ -138,7 +138,7 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 		return 1;
 	}
 
-	for (int index = 0; index <= sbgcolor; ++index)
+	for (int index = textcolor; index <= sbgcolor; ++index)
 		if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
 				       wincolors[index],
 		                       &xftv->colors[index])) {
@@ -301,7 +301,8 @@ void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 
 	count = move_and_resize(xv, wv, xftv, items, count);
 
-	XClearWindow(xv->display, wv->window);
+	//XClearWindow(xv->display, wv->window);
+	XftDrawRect(xftv->draw, &xftv->colors[bgcolor], 0, 0, wv->width, wv->height);
 	draw_items(xftv, items, count);
 
 	if (count > 1)
