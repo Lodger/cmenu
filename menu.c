@@ -10,15 +10,19 @@
 #include "menu.h"
 #include "config.h"
 
-char *inputprompt;
-
 int main(int argc, char *argv[])
 {
+	int count;
+	char *items[MAXITEMS+1];
+	count = read_stdin(items+1);
+	++count;
+
 	struct XValues xv;
 	struct WinValues wv;
 	struct XftValues xftv;
 
-	init_x(&xv);
+	if (init_x(&xv) == 1)
+		return 1;
 
 	/* load default window options */
 	get_pointer(&xv, &wv.xwc.x, &wv.xwc.y);
@@ -34,20 +38,33 @@ int main(int argc, char *argv[])
 	                          0, 0, 100, 100, 0, CopyFromParent, CopyFromParent,
 	                          xv.visual, CWOverrideRedirect | CWBackPixel | CWEventMask, &wa);
 
-	/* old window creation */
-	/*wv.window = XCreateSimpleWindow(xv.display,
-	                                RootWindow(xv.display, xv.screen_num),
-	                                wv.xwc.x, wv.xwc.y, wv.width, wv.height,
-	                                0,
-	                                BlackPixel(xv.display, xv.screen_num),
-	                                WhitePixel(xv.display, xv.screen_num));*/
-	init_xft(&xv, &wv, &xftv);
+	if (init_xft(&xv, &wv, &xftv) == 1)
+		return 1;
 
-	menu_run(&xv, &wv, &xftv, argv, argc);
+	menu_run(&xv, &wv, &xftv, items, count);
+
+	while (count--)
+		free(items[count]);
 
 	terminate_xft(&xv, &xftv);
 	terminate_x(&xv, &wv);
 	return 0;
+}
+
+unsigned read_stdin(char **lines)
+{
+	FILE *f;
+	f = stdin;
+
+	int count;
+	char buf[BUFSIZE];
+	for (count = 0; fgets(buf, BUFSIZE, f); ++count) {
+		buf[strlen(buf)-1] = '\0'; /* remove newline */
+		*lines = malloc((sizeof(buf) + 1) * sizeof(char));
+		strcpy(*lines, buf);
+		++lines;
+	}
+	return count;
 }
 
 int init_x(struct XValues *xv)
@@ -55,7 +72,7 @@ int init_x(struct XValues *xv)
 	xv->display = XOpenDisplay(NULL);
 	if (!xv->display) {
 		fprintf(stderr, "Could not connect to the X server\n");
-		exit(1);
+		return 1;
 	}
 	xv->screen_num = DefaultScreen(xv->display);
 	xv->visual = DefaultVisual(xv->display, xv->screen_num);
@@ -123,7 +140,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
               char *items[], int count)
 {
 	/* set items[0] to user input */
-	*items = malloc(MAXINPUT * sizeof(char));
+	*items = malloc(BUFSIZE * sizeof(char));
 	**items = '\0';
 
 	char *filtered[count];
@@ -223,7 +240,7 @@ int handle_key(KeySym keysym, int state, char *line)
 			*--pos = '\0';
 		break;
 	default:
-		if (pos - line < MAXINPUT) {
+		if (pos - line < BUFSIZE) {
 			*pos++ = keysym;
 			*pos = '\0';
 		}
