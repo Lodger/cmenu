@@ -45,7 +45,7 @@ int init_xft(struct XValues *xv, struct WinValues *wv,
              struct XftValues *xftv);
 void terminate_xft(struct XValues *xv, struct XftValues *xftv);
 
-/* menu function prototypes */
+/* cmenu function prototypes */
 void menu_run(struct XValues *xv, struct WinValues *wv,
               struct XftValues *xftv, char *items[], int count);
 int handle_key(KeySym keysym, int state, char *line);

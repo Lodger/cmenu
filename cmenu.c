@@ -167,7 +167,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			                            ? 1 : 0);
 			status = handle_key(keysym, e.xkey.state, *items);
 
-			/* menu exits here */
+			/* program exits here */
 			if (status == EXIT) {
 				puts(count > 1 ? filtered[1] : *items);
 				free(*filtered);
