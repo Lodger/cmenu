@@ -7,16 +7,41 @@
 
 #include <X11/keysym.h>
 
-#include "menu.h"
+#include "cmenu.h"
 #include "config.h"
+
+void show_usage(void) {
+}
 
 int main(int argc, char *argv[])
 {
+	/* parse argv */
+	for (int i = 1; i < argc; ++i)
+		if (!strcmp(argv[i], "-b"))
+			wincolors[bgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-sb"))
+			wincolors[sbgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-t"))
+			wincolors[textcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-st"))
+			wincolors[stextcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-f"))
+			fontname = argv[++i];
+		else {
+			printf("Unknown option: \"%s\"\n", argv[i]);
+			fputs("Usage: <args> | cmenu [-b color] [-sb color]\n"
+			      "                      [-t color] [-st color]\n"
+			      "                      [-f font]\n", stderr);
+			return 1;
+		}
+
+	/* read stdin */
 	int count;
 	char *items[MAXITEMS+1];
 	count = read_stdin(items+1);
 	++count;
 
+	/* setup */
 	struct XValues xv;
 	struct WinValues wv;
 	struct XftValues xftv;
@@ -39,6 +64,13 @@ int main(int argc, char *argv[])
 
 	if (init_xft(&xv, &wv, &xftv) == 1)
 		return 1;
+
+	/* grab keyboard */
+	if (XGrabKeyboard(xv.display, RootWindow(xv.display, xv.screen_num),
+	    True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
+		fputs("Could not grab keyboard", stderr);
+		return 1;
+	}
 
 	menu_run(&xv, &wv, &xftv, items, count);
 
@@ -70,18 +102,13 @@ int init_x(struct XValues *xv)
 {
 	xv->display = XOpenDisplay(NULL);
 	if (!xv->display) {
-		fprintf(stderr, "Could not connect to the X server\n");
+		fputs("Could not connect to the X server", stderr);
 		return 1;
 	}
 	xv->screen_num = DefaultScreen(xv->display);
 	xv->visual = DefaultVisual(xv->display, xv->screen_num);
 	xv->colormap = DefaultColormap(xv->display, xv->screen_num);
 
-	if (XGrabKeyboard(xv->display, RootWindow(xv->display, xv->screen_num),
-	    True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
-		fprintf(stderr, "Could not grab keyboard\n");
-		return 1;
-	}
 	return 0;
 }
 

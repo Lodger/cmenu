@@ -8,7 +8,8 @@
 
 #define textcolor 0
 #define stextcolor 1
-#define sbgcolor 2
+#define bgcolor 2
+#define sbgcolor 3
 
 struct XValues {
 	Display *display;
