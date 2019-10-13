@@ -7,6 +7,9 @@ TARGETS := cmenu
 
 DESTDIR := /usr/bin
 
+MANPAGE := cmenu.1
+MANDIR := /usr/man/man1
+
 all: $(TARGETS)
 
 debug: $(DEPS)
@@ -16,9 +19,12 @@ debug: $(DEPS)
 
 clean:
 	rm -f $(TARGETS) $(DESTDIR)/$(TARGETS)
+	rm -f $(MANDIR)/$(MANPAGE).gz
 
 install:
 	mv $(TARGETS) $(DESTDIR)
+	cp $(MANPAGE) $(MANDIR)
+	gzip $(MANDIR)/$(MANPAGE)
 
 $(TARGETS): $(DEPS)
 	@echo 'compiling...'
