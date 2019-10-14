@@ -68,9 +68,14 @@ int main(int argc, char *argv[])
 	wa.background_pixel = WhitePixel(xv.display, xv.screen_num);
 	wa.event_mask = ExposureMask | KeyPressMask;
 
-	wv.window = XCreateWindow(xv.display, RootWindow(xv.display, xv.screen_num),
-	                          0, 0, 100, 100, 0, CopyFromParent, CopyFromParent,
-	                          xv.visual, CWOverrideRedirect | CWBackPixel | CWEventMask, &wa);
+	unsigned long valuemask = CWOverrideRedirect |
+	                          CWBackPixel |
+	                          CWEventMask;
+	wv.window = XCreateWindow(xv.display,
+	                          RootWindow(xv.display, xv.screen_num),
+	                          wv.xwc.x, wv.xwc.y, 100, 100, 0,
+	                          CopyFromParent, CopyFromParent, xv.visual,
+	                          valuemask, &wa);
 
 	if (init_xft(&xv, &wv, &xftv) == 1)
 		return 1;
