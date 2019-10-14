@@ -10,24 +10,9 @@ is a simple customizable and scriptable window for X, inspired by the menu in th
 .B cmenu
 will write the chosen line (or input) to stdout. If the input provided by the user matches none of the supplied lines, the input will instead be written to stdout.
 .SH OPTIONS
-.B -f <font>
+.B -v
 .br
-	specifies an alternate font
-.br
-.B -p
-.br
-	specifies a prompt for the menu
-.br
-.br
-.B -ip
-.br
-	specifies a prefix string for the input
-.br
-.B -is
-.br
-	specifies a suffix string for the input
-.br
-	if no input is entered, show all menu items.
+	all items are visible by default
 .br
 .B -b <color>
 .br
@@ -44,3 +29,20 @@ will write the chosen line (or input) to stdout. If the input provided by the us
 .B -st <color>
 .br
 	specifies the selected foreground color
+.br
+.B -f <font>
+.br
+	specifies an alternate font
+.br
+.B -p <string>
+.br
+	specifies a prompt for the menu
+.br
+.B -ip <string>
+.br
+	specifies a prefix string for the input
+.br
+.B -is <string>
+.br
+	specifies a suffix string for the input
+.br
