@@ -42,6 +42,7 @@ unsigned read_stdin(char **lines);
 int init_x(struct XValues *xv);
 void terminate_x(struct XValues *xv, struct WinValues *wv);
 void get_pointer(struct XValues *xv, int *x, int *y);
+int grab_keyboard(struct XValues *xv);
 
 /* Xft function prototypes */
 int init_xft(struct XValues *xv, struct WinValues *wv,

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
@@ -74,12 +75,7 @@ int main(int argc, char *argv[])
 	if (init_xft(&xv, &wv, &xftv) == 1)
 		return 1;
 
-	/* grab keyboard */
-	if (XGrabKeyboard(xv.display, RootWindow(xv.display, xv.screen_num),
-	    True, GrabModeAsync, GrabModeAsync, CurrentTime) != GrabSuccess) {
-		fputs("Could not grab keyboard", stderr);
-		return 1;
-	}
+	grab_keyboard(&xv);
 
 	menu_run(&xv, &wv, &xftv, items, count);
 
@@ -105,6 +101,37 @@ unsigned read_stdin(char **lines)
 		++lines;
 	}
 	return count;
+}
+
+void get_pointer(struct XValues *xv, int *x, int *y)
+{
+	/* trash values */
+	Window ret_root, ret_child;
+	int ret_rootx, ret_rooty;
+	unsigned int ret_mask;
+
+	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
+	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
+	              x, y, &ret_mask);
+}
+
+int grab_keyboard(struct XValues *xv)
+{
+	struct timespec interval;
+	interval.tv_sec = 0;
+	interval.tv_nsec = 1000000;
+
+	for (int i = 0; i < 150; ++i) {
+		if (XGrabKeyboard(xv->display,
+		    RootWindow(xv->display, xv->screen_num),
+		    True, GrabModeAsync, GrabModeAsync, CurrentTime)
+		    == GrabSuccess)
+			return 0;
+		nanosleep(&interval, NULL);
+	}
+
+	fputs("Could not grab keyboard", stderr);
+	return 1;
 }
 
 int init_x(struct XValues *xv)
@@ -159,18 +186,6 @@ void terminate_xft(struct XValues *xv, struct XftValues *xftv)
 		XftColorFree(xv->display, xv->visual, xv->colormap,
 			     &xftv->colors[index]);
 	XftDrawDestroy(xftv->draw);
-}
-
-void get_pointer(struct XValues *xv, int *x, int *y)
-{
-	/* trash values */
-	Window ret_root, ret_child;
-	int ret_rootx, ret_rooty;
-	unsigned int ret_mask;
-
-	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
-	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
-	              x, y, &ret_mask);
 }
 
 void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
