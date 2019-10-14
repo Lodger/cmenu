@@ -5,7 +5,7 @@ DEBUGFLAGS := -fsanitize=undefined -fsanitize=address -fno-sanitize-recover -ggd
 DEPS := cmenu.c cmenu.h config.h
 TARGETS := cmenu
 
-DESTDIR := /usr/bin
+DESTDIR := /usr/local/bin
 
 MANPAGE := cmenu.1
 MANDIR := /usr/man/man1
