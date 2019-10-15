@@ -6,10 +6,7 @@
                   strlen(inputprompt))
 #define EXIT 2
 
-#define textcolor 0
-#define stextcolor 1
-#define bgcolor 2
-#define sbgcolor 3
+enum colors {textcolor, stextcolor, bgcolor, sbgcolor, bordercolor};
 
 struct XValues {
 	Display *display;
@@ -21,8 +18,7 @@ struct XValues {
 };
 
 struct XftValues {
-	char *fontname;
-	XftFont *font;
+	char *fontname; XftFont *font;
 	XftDraw *draw;
 
 	/* text color, selected text color, selected background color */
@@ -31,8 +27,6 @@ struct XftValues {
 
 struct WinValues {
 	Window window;
-	unsigned width;
-	unsigned height;
 	XWindowChanges xwc;
 };
 
