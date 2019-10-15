@@ -1,52 +1,52 @@
 .TH cmenu 8 cmenu
 .SH NAME
-cmenu - A scriptable and customizable menu for X
+cmenu - A lightweight, customizable menu for X
 .SH SYNTOPSIS
 .B cmenu
 [-v] [-b color] [-sb color] [-t color] [-st color] [-f font] [-ip string] [-is string] [-p string]
 .SH DESCRIPTION
 .B cmenu
-is a simple customizable and scriptable window for X, inspired by the menu in the Calm Window Manager. It takes in newline-delimited arguments from stdin, and displays them on screen for the user to pick from. When a line has been selected,
+is a lightweight, customizable menu for X, inspured by the menu included in the Calm window manager.  newline-delimited arguments are read in from stdin, and are displayed on the screen for the user to choose from.  When a line has been selected,
 .B cmenu
-will write the chosen line (or input) to stdout. If the input provided by the user matches none of the supplied lines, the input will instead be written to stdout.
+will write the chosenline to stdout.  If the provided input matches none of the spllied lines, the input will instead be written to stdout.
 .SH OPTIONS
 .B -v
 .br
-	all items are visible by default
+	All items are visible by default.
 .br
 .B -bg <color>
 .br
-	specifies the window background color
+	Specifies the window background color.
 .br
 .B -sbg <color>
 .br
-	specifies the selected background color
+	Specifies the selected background color.
 .br
 .B -t <color>
 .br
-	specifies the foreground color
+	Specifies the foreground color.
 .br
 .B -st <color>
 .br
-	specifies the selected foreground color
+	Specifies the selected foreground color.
 .br
 .B -b <color>
 .br
-	specifies the border color
+	Specifies the border color.
 .br
 .B -f <font>
 .br
-	specifies an alternate font
+	Specifies an alternate font.
 .br
 .B -p <string>
 .br
-	specifies a prompt for the menu
+	Specifies a prompt for the menu.
 .br
 .B -ip <string>
 .br
-	specifies a prefix string for the input
+	Specifies a prefix string for the input.
 .br
 .B -is <string>
 .br
-	specifies a suffix string for the input
+	Specifies a suffix string for the input.
 .br
