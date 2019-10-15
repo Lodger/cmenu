@@ -1,0 +1,20 @@
+cmenu is a lightweight, customizable menu for X, inspired by the menu included
+in the Calm window manager.  Newline-delimited arguments are read in from
+stdin, and are displayed on the screen for the user to choose from.  When a
+line has been selected, cmenu will write the chosen line to stdout.If the
+provided input matches none of the supplied lines, the input will instead be
+written to stdout.
+
+All the configuration options in config.h are also available through
+command-line options, however the defaults can easily be changed by adding them
+to config.h, and reinstalling.
+
+If you have a feature request, open up an issue or pull request and I'll do
+my best to add or resolve it quickly.
+
+Installation:
+	git clone <repo>
+	make && sudo make install
+
+To uninstall:
+	sudo make clean
