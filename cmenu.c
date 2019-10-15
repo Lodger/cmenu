@@ -17,14 +17,16 @@ int main(int argc, char *argv[])
 	for (int i = 1; i < argc; ++i)
 		if (!strcmp(argv[i], "-v"))
 			visible = True;
-		else if (!strcmp(argv[i], "-b"))
+		else if (!strcmp(argv[i], "-bg"))
 			wincolors[bgcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-sb"))
+		else if (!strcmp(argv[i], "-sbg"))
 			wincolors[sbgcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-t"))
 			wincolors[textcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-st"))
 			wincolors[stextcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-b"))
+			wincolors[bordercolor] = argb[++i];
 		else if (!strcmp(argv[i], "-f"))
 			fontname = argv[++i];
 		else if (!strcmp(argv[i], "-ip"))
@@ -36,8 +38,9 @@ int main(int argc, char *argv[])
 		else {
 			printf("Unknown option: \"%s\"\n", argv[i]);
 			fputs("Usage: <args> | cmenu [-v]\n"
-			      "                      [-b color] [-sb color]\n"
+			      "                      [-bg color] [-sbg color]\n"
 			      "                      [-t color] [-st color]\n"
+			      "                      [-b color]\n"
 			      "                      [-f font]\n"
 			      "                      [-ip string]\n"
 			      "                      [-is string]\n"
@@ -362,8 +365,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	if (count * xftv->font->height > xv->screen_height - wv->xwc.y)
 		if (count * xftv->font->height < xv->screen_height) {
 			XWarpPointer(xv->display, None, None,
-			             wv->xwc.x, wv->xwc.y,
-			             0, 0, 0,
+			             wv->xwc.x, wv->xwc.y, 0, 0, 0,
 			             xv->screen_height - wv->xwc.y - count *
 			             xftv->font->height);
 			wv->xwc.y = xv->screen_height -
