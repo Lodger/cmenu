@@ -13,7 +13,7 @@ If you have a feature request, open up an issue or pull request and I'll do
 my best to add or resolve it quickly.
 
 Installation:
-	git clone https://github.com/emanresudab/cmenu
+	git clone <repo>
 	make && sudo make install
 
 To uninstall:
