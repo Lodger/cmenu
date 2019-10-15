@@ -18,13 +18,17 @@ debug: $(DEPS)
 	@echo 'done.'
 
 clean:
-	rm -f $(TARGETS) $(DESTDIR)/$(TARGETS)
-	rm -f $(MANDIR)/$(MANPAGE).gz
+	@echo "installing..."
+	@rm -f $(TARGETS) $(DESTDIR)/$(TARGETS)
+	@rm -f $(MANDIR)/$(MANPAGE).gz
+	@echo "done."
 
 install:
-	mv $(TARGETS) $(DESTDIR)
-	cp $(MANPAGE) $(MANDIR)
-	gzip -f $(MANDIR)/$(MANPAGE)
+	@echo "installing..."
+	@mv $(TARGETS) $(DESTDIR)
+	@cp $(MANPAGE) $(MANDIR)
+	@gzip -f $(MANDIR)/$(MANPAGE)
+	@echo 'done.'
 
 $(TARGETS): $(DEPS)
 	@echo 'compiling...'
