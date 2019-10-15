@@ -5,6 +5,7 @@
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
 #include <X11/Xft/Xft.h>
+#include <X11/cursorfont.h>
 
 #include <X11/keysym.h>
 
@@ -26,7 +27,7 @@ int main(int argc, char *argv[])
 		else if (!strcmp(argv[i], "-st"))
 			wincolors[stextcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-b"))
-			wincolors[bordercolor] = argb[++i];
+			wincolors[bordercolor] = argv[++i];
 		else if (!strcmp(argv[i], "-f"))
 			fontname = argv[++i];
 		else if (!strcmp(argv[i], "-ip"))
@@ -55,6 +56,8 @@ int main(int argc, char *argv[])
 	++count;
 
 	/* setup */
+	int pointerx, pointery;
+
 	struct XValues xv;
 	struct WinValues wv;
 	struct XftValues xftv;
@@ -63,7 +66,9 @@ int main(int argc, char *argv[])
 		return 1;
 
 	/* setup window values */
-	get_pointer(&xv, &wv.xwc.x, &wv.xwc.y);
+	get_pointer(&xv, &pointerx, &pointery);
+	wv.xwc.x = pointerx;
+	wv.xwc.y = pointery;
 
 	XColor borderpixel;
 	XParseColor(xv.display, xv.colormap, wincolors[bordercolor],
@@ -90,11 +95,18 @@ int main(int argc, char *argv[])
 		return 1;
 
 	grab_keyboard(&xv);
+	XGrabPointer(xv.display, wv.window, False, 0, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+
+	Cursor c;
+	c = XCreateFontCursor(xv.display, XC_question_arrow);
+	XDefineCursor(xv.display, wv.window, c);
 
 	menu_run(&xv, &wv, &xftv, items, count);
 
 	while (count--)
 		free(items[count]);
+
+	XWarpPointer(xv.display, None, xv.root, 0, 0, 0, 0, pointerx, pointery);
 
 	terminate_xft(&xv, &xftv);
 	terminate_x(&xv, &wv);
@@ -115,6 +127,18 @@ unsigned read_stdin(char **lines)
 		++lines;
 	}
 	return count;
+}
+
+void get_pointer(struct XValues *xv, int *x, int *y)
+{
+	/* trash values */
+	Window ret_root, ret_child;
+	int ret_rootx, ret_rooty;
+	unsigned int ret_mask;
+
+	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
+	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
+	              x, y, &ret_mask);
 }
 
 int grab_keyboard(struct XValues *xv)
@@ -144,6 +168,7 @@ int init_x(struct XValues *xv)
 		return 1;
 	}
 	xv->screen_num = DefaultScreen(xv->display);
+	xv->root = RootWindow(xv->display, xv->screen_num);
 	xv->screen_width = DisplayWidth(xv->display, xv->screen_num);
 	xv->screen_height = DisplayHeight(xv->display, xv->screen_num);
 	xv->visual = DefaultVisual(xv->display, xv->screen_num);
@@ -156,18 +181,6 @@ void terminate_x(struct XValues *xv, struct WinValues *wv)
 {
 	XDestroyWindow(xv->display, wv->window);
 	XCloseDisplay(xv->display);
-}
-
-void get_pointer(struct XValues *xv, int *x, int *y)
-{
-	/* trash values */
-	Window ret_root, ret_child;
-	int ret_rootx, ret_rooty;
-	unsigned int ret_mask;
-
-	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
-	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
-	              x, y, &ret_mask);
 }
 
 int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
@@ -360,26 +373,6 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
                     struct XftValues *xftv, char *items[], int count)
 {
 	int total_displayed;
-
-	/* if necessary, move and clip the window */
-	if (count * xftv->font->height > xv->screen_height - wv->xwc.y)
-		if (count * xftv->font->height < xv->screen_height) {
-			XWarpPointer(xv->display, None, None,
-			             wv->xwc.x, wv->xwc.y, 0, 0, 0,
-			             xv->screen_height - wv->xwc.y - count *
-			             xftv->font->height);
-			wv->xwc.y = xv->screen_height -
-			            (count * xftv->font->height);
-		} else {
-			XWarpPointer(xv->display, None, None,
-			             wv->xwc.x, wv->xwc.y,
-			             0, 0, 0, wv->xwc.y * -1);
-			wv->xwc.y = 0;
-
-			/* now clip the menu */
-			count = (xv->screen_height - wv->xwc.y) /
-			         xftv->font->height;
-		}
 	total_displayed = count;
 
 	wv->xwc.height = xftv->font->height * count + padding * 2;
@@ -396,6 +389,36 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	}
 		
 	wv->xwc.width = longest + padding * 2;
+
+	/* We can always count on the top left corner of the window also being
+	   the location of the pointer, so (wv->xwc.x, wv->xwc.y), is also the
+	   the coordinates of the pointer. The screen height - mouse location
+	   is the current (old) height of the window. */
+	if (wv->xwc.height > xv->screen_height - wv->xwc.y) {
+		if (wv->xwc.height > xv->screen_height) {
+			wv->xwc.y = 0;
+
+			/* clip the menu if it extends beyond the screen */
+			count = (xv->screen_height - wv->xwc.y) /
+			        xftv->font->height;
+		} else {
+			wv->xwc.y = xv->screen_height - wv->xwc.height;
+		}
+
+		XWarpPointer(xv->display, None, xv->root, 0, 0, 0, 0,
+			     wv->xwc.x, wv->xwc.y);
+	}
+
+	/* X axis */
+	if (wv->xwc.width > xv->screen_width - wv->xwc.x) {
+		if (wv->xwc.width > xv->screen_width)
+			wv->xwc.x = 0;
+		else
+			wv->xwc.x = xv->screen_width - wv->xwc.width;
+
+		XWarpPointer(xv->display, None, xv->root, 0, 0, 0, 0,
+			     wv->xwc.x, wv->xwc.y);
+	}
 
 	/* update window location */
 	XConfigureWindow(xv->display, wv->window,

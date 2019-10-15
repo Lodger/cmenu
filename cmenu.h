@@ -11,6 +11,7 @@ enum colors {textcolor, stextcolor, bgcolor, sbgcolor, bordercolor};
 struct XValues {
 	Display *display;
 	int screen_num;
+	Window root;
 	unsigned screen_width;
 	unsigned screen_height;
 	Visual *visual;
