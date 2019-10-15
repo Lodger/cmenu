@@ -1,7 +1,7 @@
 cmenu is a lightweight, customizable menu for X, inspired by the menu included
 in the Calm window manager.  Newline-delimited arguments are read in from
 stdin, and are displayed on the screen for the user to choose from.  When a
-line has been selected, cmenu will write the chosen line to stdout.If the
+line has been selected, cmenu will write the chosen line to stdout.  If the
 provided input matches none of the supplied lines, the input will instead be
 written to stdout.
 
