@@ -28,6 +28,10 @@ int main(int argc, char *argv[])
 			wincolors[stextcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-b"))
 			wincolors[bordercolor] = argv[++i];
+		else if (!strcmp(argv[i], "-bw"))
+			borderwidth = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-p"))
+			padding = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-f"))
 			fontname = argv[++i];
 		else if (!strcmp(argv[i], "-ip"))
@@ -41,7 +45,8 @@ int main(int argc, char *argv[])
 			fputs("Usage: <args> | cmenu [-v]\n"
 			      "                      [-bg color] [-sbg color]\n"
 			      "                      [-t color] [-st color]\n"
-			      "                      [-b color]\n"
+			      "                      [-b color] [-bw int]\n"
+			      "                      [ -p int]\n"
 			      "                      [-f font]\n"
 			      "                      [-ip string]\n"
 			      "                      [-is string]\n"
