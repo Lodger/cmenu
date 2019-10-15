@@ -4,8 +4,8 @@
                   strlen(inputprefix) +\
                   strlen(inputsuffix) +\
                   strlen(inputprompt))
-#define EXIT 2
 
+enum handle_key_exits {EXIT = 2, TERM};
 enum colors {textcolor, stextcolor, bgcolor, sbgcolor, bordercolor};
 
 struct XValues {

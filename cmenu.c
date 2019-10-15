@@ -253,10 +253,13 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			status = handle_key(keysym, e.xkey.state, *items);
 
 			/* program exits here */
-			if (status == EXIT) {
+			switch(status)
+			case EXIT: {
 				puts(count > 1 ? filtered[1] : *items);
+			case TERM:
 				free(*filtered);
 				return;
+				break;
 			}
 			break;
 		case KeyRelease:
@@ -307,6 +310,9 @@ int handle_key(KeySym keysym, int state, char *line)
 		}
 
 	switch(keysym) {
+	case XK_Escape:
+		return TERM;
+		break;
 	case XK_Return:
 		return EXIT;
 		break;
