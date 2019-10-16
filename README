@@ -14,6 +14,7 @@ my best to add or resolve it quickly.
 
 Installation:
 	git clone https://github.com/emanresudab/cmenu
+	cd cmenu
 	make && sudo make install
 
 To uninstall:
