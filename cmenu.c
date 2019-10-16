@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 	/* parse argv */
 	for (int i = 1; i < argc; ++i)
 		if (!strcmp(argv[i], "-v"))
-			visible = True;
+			itemsvisible = True;
 		else if (!strcmp(argv[i], "-bg"))
 			wincolors[bgcolor] = argv[++i];
 		else if (!strcmp(argv[i], "-sbg"))
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
 			inputprefix = argv[++i];
 		else if (!strcmp(argv[i], "-is"))
 			inputsuffix = argv[++i];
-		else if (!strcmp(argv[i], "-p"))
+		else if (!strcmp(argv[i], "-pr"))
 			inputprompt = argv[++i];
 		else {
 			printf("Unknown option: \"%s\"\n", argv[i]);
@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 			      "                      [-f font]\n"
 			      "                      [-ip string]\n"
 			      "                      [-is string]\n"
-			      "                      [-p string]\n", stderr);
+			      "                      [-pr string]\n", stderr);
 			return 1;
 		}
 
@@ -86,25 +86,19 @@ int main(int argc, char *argv[])
 	wa.border_pixel = borderpixel.pixel;
 	wa.event_mask = ExposureMask | KeyPressMask;
 
-	unsigned long valuemask = CWOverrideRedirect | CWBackPixel |
-	                          CWEventMask | CWBorderPixel;
-
 	/* create the window */
 	wv.window = XCreateWindow(xv.display,
 	                          RootWindow(xv.display, xv.screen_num),
 	                          wv.xwc.x, wv.xwc.y, 1, 1, borderwidth,
 	                          CopyFromParent, CopyFromParent, xv.visual,
-	                          valuemask, &wa);
+	                          CWOverrideRedirect | CWBackPixel |
+	                          CWEventMask | CWBorderPixel, &wa);
 
 	if (init_xft(&xv, &wv, &xftv) != 0)
 		return 1;
 
 	grab_keyboard(&xv);
 	XGrabPointer(xv.display, wv.window, False, 0, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
-
-	Cursor c;
-	c = XCreateFontCursor(xv.display, XC_question_arrow);
-	XDefineCursor(xv.display, wv.window, c);
 
 	menu_run(&xv, &wv, &xftv, items, count);
 
@@ -228,23 +222,28 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	**items = '\0';
 
 	char *filtered[count];
-	char **filteredp;
 
 	/* filtered[0] is user input + decorations */
 	*filtered = malloc(INPUTLEN * sizeof(char));
 
-	XSelectInput(xv->display, wv->window, ExposureMask | KeyPressMask);
+	XSelectInput(xv->display, wv->window, ExposureMask |
+	                                      KeyPressMask |
+	                                      PointerMotionMask |
+	                                      ButtonPressMask);
 
 	XEvent e;
 	KeySym keysym;
-	int status;
+	int status, selected, location;
 
-	status = 0;
+	status = 0; /* do nothing */
+	selected = 0; /* initially, the mouse has not selected anything */
 	for (;;) {
 		XMapWindow(xv->display, wv->window);
 		XNextEvent(xv->display, &e);
 
 		switch(e.type) {
+		case Expose:
+			break;
 		case KeyPress:
 			keysym = XkbKeycodeToKeysym(xv->display,
 			                            e.xkey.keycode, 0,
@@ -262,6 +261,50 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 				break;
 			}
 			break;
+		case ButtonPress:
+			if (count == 1 || e.xbutton.y < xftv->font->ascent +
+			    xftv->font->descent)
+				continue;
+
+			selected = (e.xbutton.y - xftv->font->ascent) /
+			           xftv->font->height;
+
+			if (selected >= count-1) /* out of bounds */
+				break;
+
+			/* mouse mode exits here */
+			puts(filtered[selected+1]);
+			free(*filtered);
+			return;
+			break;
+
+		/* mouse mode */
+		case MotionNotify:
+			location = (e.xbutton.y - xftv->font->ascent - padding);
+
+			if (e.xbutton.y < xftv->font->ascent +
+			    xftv->font->descent || count == 1 ||
+			    location / xftv->font->height == selected )
+				continue;
+
+			count = filter_input(items, *items, filtered+1) + 1;
+			rotate_array(filtered+1, count-1, status);
+
+			/* hide old selection */
+			draw_selected(xv, wv, xftv, filtered[selected+1],
+			              selected, 1); /* hide old selection */
+
+			selected = location / xftv->font->height;
+
+			if (location < 0 ||
+			    location / xftv->font->ascent > count)
+				continue;
+
+			/* draw new selection */
+			draw_selected(xv, wv, xftv, filtered[selected+1],
+			              selected, 0);
+			continue;
+			break;
 		case KeyRelease:
 			continue;
 			break;
@@ -271,16 +314,13 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		snprintf(*filtered, INPUTLEN, "%s%s%s%s",
 		         inputprompt, inputprefix, *items, inputsuffix);
 
-		/* filter everything in items through user input*/
-		filteredp = filtered+1;
-		for (char **itemsp = items+1; *itemsp; ++itemsp)
-			if ((strlen(*items) || visible) &&
-			    strstr(*itemsp, *items) == *itemsp)
-				*filteredp++ = *itemsp;
-		count = filteredp - filtered;
+		count = filter_input(items, *items, filtered+1) + 1;
+
+		if (count > 1)
+			rotate_array(filtered+1, count-1, status);
 
 		/* status is used to determine the shift amount */
-		if (visible)
+		if (itemsvisible)
 			draw_menu(xv, wv, xftv, filtered, count, status);
 		else
 			draw_menu(xv, wv, xftv, filtered,
@@ -317,10 +357,8 @@ int handle_key(KeySym keysym, int state, char *line)
 		return EXIT;
 		break;
 	case XK_Super_L:
-	case XK_Control_L:
-	case XK_Control_R:
-	case XK_Shift_R:
-	case XK_Shift_L:
+	case XK_Control_L: case XK_Control_R:
+	case XK_Shift_R: case XK_Shift_L:
 		break;
 	case XK_Up:
 		return -1;
@@ -339,45 +377,53 @@ int handle_key(KeySym keysym, int state, char *line)
 		}
 		break;
 	}
+	
 	return 0;
+}
+
+int filter_input(char **source, char *filter, char **out)
+{
+	char **sourcep, **outp;
+	outp = out;
+	for (char **sourcep = source+1; *sourcep; ++sourcep)
+		if ((strlen(*source) || itemsvisible) &&
+		    strstr(*sourcep, *source) == *sourcep)
+			*outp++ = *sourcep;
+	return outp - out;
+}
+
+void rotate_array(char **array, int count, int shift)
+{
+	static int offset = 0;
+	offset = (offset + shift) % count;
+	if (offset > 0) {
+		char *tmp[count];
+
+		memcpy(tmp, array + offset, (count - offset) * sizeof(char*));
+		memcpy(tmp + count - offset, array, offset * sizeof(char*));
+		memcpy(array, tmp, sizeof(tmp));
+	} else if (offset < 0) {
+		char *tmp[count];
+		offset = abs(offset);
+
+		memcpy(tmp, array + count - offset, offset * sizeof(char*));
+		memcpy(tmp + offset, array, (count - offset) * sizeof(char*));
+		memcpy(array, tmp, sizeof(tmp));
+
+		offset *= -1;
+	}
 }
 
 void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
                char *items[], int count, int shift)
 {
-	static int offset = 0;
-	if (count > 1) {
-		offset = (offset + shift) % (count-1);
-		for (int i = abs(offset); i > 0; --i)
-			rotate_array(items+1, count-1, offset);
-	}
-
 	count = move_and_resize(xv, wv, xftv, items, count);
-
 	XftDrawRect(xftv->draw, &xftv->colors[bgcolor], 0, 0, wv->xwc.width,
 	            wv->xwc.height);
 	draw_items(xftv, items, count);
 
 	if (count > 1)
-		draw_selected(xv, wv, xftv, *(items+1));
-}
-
-void rotate_array(char **array, int count, int dir)
-{
-	int i;
-	char *tmp;
-
-	if (dir > 0) {
-		tmp = *array;
-		for (i = 0; i < count-1; ++i)
-			array[i] = array[i+1];
-		array[i] = tmp;
-	} else if (dir < 0) {
-		tmp = array[count-1];
-		for (i = count-1; i > 0; --i)
-			array[i] = array[i-1];
-		*array = tmp;
-	}
+		draw_selected(xv, wv, xftv, items[1], 0, 0);
 }
 
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
@@ -431,6 +477,10 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			     wv->xwc.x, wv->xwc.y);
 	}
 
+	//Cursor c;
+	//c = XCreateFontCursor(xv->display, XC_question_arrow);
+	//XDefineCursor(xv->display, wv->window, c);
+
 	/* update window location */
 	XConfigureWindow(xv->display, wv->window,
 	                 CWX | CWY | CWWidth | CWHeight, &wv->xwc);
@@ -439,9 +489,8 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 void draw_items(struct XftValues *xftv, char *items[], int count)
 {
-	int ascent, descent, height;
+	int ascent, height;
 	ascent = xftv->font->ascent;
-	descent = xftv->font->descent;
 	height = xftv->font->height;
 
 	int line;
@@ -453,16 +502,22 @@ void draw_items(struct XftValues *xftv, char *items[], int count)
 }
 
 void draw_selected(struct XValues *xv, struct WinValues *wv,
-                   struct XftValues *xftv, char *line)
+                   struct XftValues *xftv, char *line, int index, short swap)
 {
-	int y, lheight;
+	int y, rheight, lheight;
 
 	y = xftv->font->ascent + xftv->font->descent + padding;
 	lheight = xftv->font->ascent + xftv->font->height + padding;
+	rheight = y - padding;
 
-	XftDrawRect(xftv->draw, &xftv->colors[sbgcolor], 0, y, wv->xwc.width,
-	            y - padding);
+	/* calculate offsets */
+	y += xftv->font->height * index;
+	lheight += xftv->font->height * index;
 
-	XftDrawStringUtf8(xftv->draw, &xftv->colors[stextcolor], xftv->font,
-	                  padding, lheight, line, strlen(line));
+	XftDrawRect(xftv->draw, &xftv->colors[!swap ? sbgcolor : bgcolor],
+	            0, y, wv->xwc.width, rheight);
+
+	XftDrawStringUtf8(xftv->draw,
+	                  &xftv->colors[!swap ? stextcolor : textcolor],
+	                  xftv->font, padding, lheight, line, strlen(line));
 }

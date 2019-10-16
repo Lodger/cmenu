@@ -16,4 +16,4 @@ char *wincolors[] = {"#000000",  /* textcolor */
                      "#000000"   /* border color */
                      };
 
-int visible = False;
+int itemsvisible = False;

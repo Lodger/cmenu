@@ -36,7 +36,6 @@ unsigned read_stdin(char **lines);
 /* X function prototypes */
 int init_x(struct XValues *xv);
 void terminate_x(struct XValues *xv, struct WinValues *wv);
-void get_pointer(struct XValues *xv, int *x, int *y);
 int grab_keyboard(struct XValues *xv);
 
 /* Xft function prototypes */
@@ -50,9 +49,13 @@ void menu_run(struct XValues *xv, struct WinValues *wv,
 int handle_key(KeySym keysym, int state, char *line);
 void draw_menu(struct XValues *xv, struct WinValues *wv,
                struct XftValues *xftv, char *items[], int count, int shift);
-void draw_selected(struct XValues *xv, struct WinValues *wv,
-                      struct XftValues *xftv, char *line);
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
-                     struct XftValues *xftv, char *items[], int count);
+                    struct XftValues *xftv, char *items[], int count);
 void draw_items(struct XftValues *xftv, char *items[], int count);
+void draw_selected(struct XValues *xv, struct WinValues *wv,
+                   struct XftValues *xftv, char *line, int index, short swap);
+
+/* utility functions */
+int filter_input(char **source, char *filter, char **out);
+void get_pointer(struct XValues *xv, int *x, int *y);
 void rotate_array(char **array, int count, int dir);
