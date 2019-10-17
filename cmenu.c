@@ -288,7 +288,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 				continue;
 
 			count = filter_input(items, *items, filtered+1) + 1;
-			rotate_array(filtered+1, count-1, status);
+			rotate_array(filtered+1, count-1, 0);
 
 			/* hide old selection */
 			draw_selected(xv, wv, xftv, filtered[selected+1],
@@ -296,9 +296,10 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 
 			selected = location / xftv->font->height;
 
-			if (location < 0 ||
-			    location / xftv->font->ascent > count)
+			if (location < 0 || selected >= count-1) {
+				selected = 0;
 				continue;
+			}
 
 			/* draw new selection */
 			draw_selected(xv, wv, xftv, filtered[selected+1],
