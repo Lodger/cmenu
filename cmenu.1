@@ -10,51 +10,61 @@ is a lightweight, customizable menu for X, inspured by the menu included in the 
 .B cmenu
 will write the chosenline to stdout.  If the provided input matches none of the spllied lines, the input will instead be written to stdout.
 .SH OPTIONS
-.B -v
+.B -v | --visible
 .br
 	All items are visible by default.
 .br
-.B -bg <color>
 .br
-	Specifies the window background color.
+.B -f | --font
 .br
-.B -sbg <color>
+	Specifies a font
+
 .br
-	Specifies the selected background color.
+.B -fg | --foreground
 .br
-.B -t <color>
+	Specifies the the foreground color
+
 .br
-	Specifies the foreground color.
+.B -afg | --active-foreground
 .br
-.B -st <color>
+	Specifies the active foreground color
+
 .br
-	Specifies the selected foreground color.
+.B -bg | --background
 .br
-.B -b <color>
+	Specifies the background color
+
 .br
-	Specifies the border color.
+.B -sbg | --selected-background
 .br
-.B -b <int>
+	Specifies the a background color
+
 .br
-	Specifies the border width.
+.B -b | --border
 .br
-.B -p <int>
+	Specifies the border width
+
 .br
-	Specifies the padding.
+.B -bc | --border-color
 .br
-.B -f <font>
+	Specifies the border color
+
 .br
-	Specifies an alternate font.
+.B -p | --padding
 .br
-.B -pr <string>
+	Specifies the inner padding width
+
 .br
-	Specifies a prompt for the menu.
+.B -pr | --prompt
 .br
-.B -ip <string>
+	Specifies the input prompt
+
 .br
-	Specifies a prefix string for the input.
+.B -ip --input-prefix
 .br
-.B -is <string>
+	Specifies the input prefix
+
 .br
-	Specifies a suffix string for the input.
+.B -is --input-suffix
 .br
+	Specifies the input suffix

@@ -16,41 +16,51 @@ int main(int argc, char *argv[])
 {
 	/* parse argv */
 	for (int i = 1; i < argc; ++i)
-		if (!strcmp(argv[i], "-v"))
+		if (!strcmp(argv[i], "-v") ||
+		    !strcmp(argv[i], "--visible"))
 			itemsvisible = True;
-		else if (!strcmp(argv[i], "-bg"))
-			wincolors[bgcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-sbg"))
-			wincolors[sbgcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-t"))
-			wincolors[textcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-st"))
-			wincolors[stextcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-b"))
-			wincolors[bordercolor] = argv[++i];
-		else if (!strcmp(argv[i], "-bw"))
-			borderwidth = atoi(argv[++i]);
-		else if (!strcmp(argv[i], "-p"))
-			padding = atoi(argv[++i]);
-		else if (!strcmp(argv[i], "-f"))
+		else if (!strcmp(argv[i], "-f") ||
+		         !strcmp(argv[i], "--font"))
 			fontname = argv[++i];
-		else if (!strcmp(argv[i], "-ip"))
-			inputprefix = argv[++i];
-		else if (!strcmp(argv[i], "-is"))
-			inputsuffix = argv[++i];
-		else if (!strcmp(argv[i], "-pr"))
+		else if (!strcmp(argv[i], "-fg") ||
+		         !strcmp(argv[i], "--foreground"))
+			wincolors[fgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-afg") ||
+		         !strcmp(argv[i], "--active-foreground"))
+			wincolors[afgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-bg") ||
+		         !strcmp(argv[i], "--backgroud"))
+			wincolors[bgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-abg") ||
+		         !strcmp(argv[i], "--active-background"))
+			wincolors[abgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-b") ||
+		         !strcmp(argv[i], "--border"))
+			borderwidth = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-bc"),
+		         !strcmp(argv[i], "--border-color"))
+			wincolors[bordercolor] = argv[++i];
+		else if (!strcmp(argv[i], "-p") ||
+		         !strcmp(argv[i], "--padding"))
+			padding = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-pr") ||
+		         !strcmp(argv[i], "--prompt"))
 			inputprompt = argv[++i];
+		/*
+		else if (!strcmp(argv[i], "-pc") ||
+		         !strcmp(argv[i], "--prompt-color"))
+		*/
+		else if (!strcmp(argv[i], "-ip") ||
+		         !strcmp(argv[i], "--input-prefox"))
+			inputprefix = argv[++i];
+		else if (!strcmp(argv[i], "-is") ||
+		         !strcmp(argv[i], "--input-suffix"))
+			inputsuffix = argv[++i];
 		else {
 			printf("Unknown option: \"%s\"\n", argv[i]);
-			fputs("Usage: <args> | cmenu [-v]\n"
-			      "                      [-bg color] [-sbg color]\n"
-			      "                      [-t color] [-st color]\n"
-			      "                      [-b color] [-bw int]\n"
-			      "                      [ -p int]\n"
-			      "                      [-f font]\n"
-			      "                      [-ip string]\n"
-			      "                      [-is string]\n"
-			      "                      [-pr string]\n", stderr);
+			fputs("Usage: cmenu [-v] [-f font] [-fg color] [-afg color] [-bg color] [-abg color]\n"
+                              "             [-b width] [-bc color] [-p width] [-pr prompt]\n"
+                              "             [-ip prefix] [-is suffix]\n", stderr);
 			return 1;
 		}
 
@@ -97,8 +107,11 @@ int main(int argc, char *argv[])
 	if (init_xft(&xv, &wv, &xftv) != 0)
 		return 1;
 
-	grab_keyboard(&xv);
-	XGrabPointer(xv.display, wv.window, False, 0, GrabModeAsync, GrabModeAsync, None, None, CurrentTime);
+	grab_keyboard(&xv, &wv);
+
+	Cursor c;
+	c = XCreateFontCursor(xv.display, XC_question_arrow);
+	XDefineCursor(xv.display, wv.window, c);
 
 	menu_run(&xv, &wv, &xftv, items, count);
 
@@ -140,7 +153,7 @@ void get_pointer(struct XValues *xv, int *x, int *y)
 	              x, y, &ret_mask);
 }
 
-int grab_keyboard(struct XValues *xv)
+void grab_keyboard(struct XValues *xv)
 {
 	struct timespec interval;
 	interval.tv_sec = 0;
@@ -148,15 +161,13 @@ int grab_keyboard(struct XValues *xv)
 
 	for (int i = 0; i < 150; ++i) {
 		if (XGrabKeyboard(xv->display,
-		    RootWindow(xv->display, xv->screen_num),
-		    True, GrabModeAsync, GrabModeAsync, CurrentTime)
+		    RootWindow(xv->display, xv->screen_num), True,
+		    GrabModeAsync, GrabModeAsync, CurrentTime)
 		    == GrabSuccess)
-			return 0;
+			break;
 		nanosleep(&interval, NULL);
 	}
-
-	fputs("Could not grab keyboard", stderr);
-	return 1;
+	fputs("Unable to grab keyboard", stderr);
 }
 
 int init_x(struct XValues *xv)
@@ -191,7 +202,7 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 		return 1;
 	}
 
-	for (int index = textcolor; index <= sbgcolor; ++index)
+	for (int index = fgcolor; index <= abgcolor; ++index)
 		if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
 				       wincolors[index],
 		                       &xftv->colors[index])) {
@@ -208,7 +219,7 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 void terminate_xft(struct XValues *xv, struct XftValues *xftv)
 {
 	XftFontClose(xv->display, xftv->font);
-	for (int index = 0; index <= sbgcolor; ++index)
+	for (int index = 0; index <= abgcolor; ++index)
 		XftColorFree(xv->display, xv->visual, xv->colormap,
 			     &xftv->colors[index]);
 	XftDrawDestroy(xftv->draw);
@@ -291,7 +302,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			rotate_array(filtered+1, count-1, 0);
 
 			/* hide old selection */
-			draw_selected(xv, wv, xftv, filtered[selected+1],
+			draw_string(xv, wv, xftv, filtered[selected+1],
 			              selected, 1); /* hide old selection */
 
 			selected = location / xftv->font->height;
@@ -302,7 +313,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			}
 
 			/* draw new selection */
-			draw_selected(xv, wv, xftv, filtered[selected+1],
+			draw_string(xv, wv, xftv, filtered[selected+1],
 			              selected, 0);
 			continue;
 			break;
@@ -424,7 +435,7 @@ void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	draw_items(xftv, items, count);
 
 	if (count > 1)
-		draw_selected(xv, wv, xftv, items[1], 0, 0);
+		draw_string(xv, wv, xftv, items[1], 0, 0);
 }
 
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
@@ -478,10 +489,6 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			     wv->xwc.x, wv->xwc.y);
 	}
 
-	//Cursor c;
-	//c = XCreateFontCursor(xv->display, XC_question_arrow);
-	//XDefineCursor(xv->display, wv->window, c);
-
 	/* update window location */
 	XConfigureWindow(xv->display, wv->window,
 	                 CWX | CWY | CWWidth | CWHeight, &wv->xwc);
@@ -496,13 +503,13 @@ void draw_items(struct XftValues *xftv, char *items[], int count)
 
 	int line;
 	for (line = ascent + padding; count--; line += height, ++items) {
-		XftDrawStringUtf8(xftv->draw, &xftv->colors[textcolor],
+		XftDrawStringUtf8(xftv->draw, &xftv->colors[fgcolor],
 		                  xftv->font, padding, line, *items,
 		                  strlen(*items));
 	}
 }
 
-void draw_selected(struct XValues *xv, struct WinValues *wv,
+void draw_string(struct XValues *xv, struct WinValues *wv,
                    struct XftValues *xftv, char *line, int index, short swap)
 {
 	int y, rheight, lheight;
@@ -515,10 +522,10 @@ void draw_selected(struct XValues *xv, struct WinValues *wv,
 	y += xftv->font->height * index;
 	lheight += xftv->font->height * index;
 
-	XftDrawRect(xftv->draw, &xftv->colors[!swap ? sbgcolor : bgcolor],
+	XftDrawRect(xftv->draw, &xftv->colors[!swap ? abgcolor : bgcolor],
 	            0, y, wv->xwc.width, rheight);
 
 	XftDrawStringUtf8(xftv->draw,
-	                  &xftv->colors[!swap ? stextcolor : textcolor],
+	                  &xftv->colors[!swap ? afgcolor : fgcolor],
 	                  xftv->font, padding, lheight, line, strlen(line));
 }
