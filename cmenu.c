@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 	if (init_xft(&xv, &wv, &xftv) != 0)
 		return 1;
 
-	grab_keyboard(&xv, &wv);
+	grab_keyboard(&xv);
 
 	Cursor c;
 	c = XCreateFontCursor(xv.display, XC_question_arrow);
@@ -397,10 +397,12 @@ int filter_input(char **source, char *filter, char **out)
 {
 	char **sourcep, **outp;
 	outp = out;
+
 	for (char **sourcep = source+1; *sourcep; ++sourcep)
 		if ((strlen(*source) || itemsvisible) &&
 		    strstr(*sourcep, *source) == *sourcep)
 			*outp++ = *sourcep;
+
 	return outp - out;
 }
 
@@ -468,8 +470,8 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			wv->xwc.y = 0;
 
 			/* clip the menu if it extends beyond the screen */
-			count = (xv->screen_height - wv->xwc.y) /
-			        xftv->font->height;
+			total_displayed = (xv->screen_height - wv->xwc.y) /
+			                   xftv->font->height;
 		} else {
 			wv->xwc.y = xv->screen_height - wv->xwc.height;
 		}
