@@ -1,5 +1,5 @@
 #define MAXITEMS 5000
-#define BUFSIZE 100 /* max input size, max item size */
+#define BUFSIZE  100 /* max input size, max item size */
 #define INPUTLEN (BUFSIZE +\
                   strlen(inputprefix) +\
                   strlen(inputsuffix) +\

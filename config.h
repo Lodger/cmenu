@@ -1,5 +1,5 @@
 /* default configuration values */
-char *fontname = "terminus-12";
+char *fontname = "fixed-10";
 
 char *inputprompt = "menu";
 char *inputprefix = "\xc2\xbb";

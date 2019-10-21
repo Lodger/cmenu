@@ -164,7 +164,7 @@ void grab_keyboard(struct XValues *xv)
 		    RootWindow(xv->display, xv->screen_num), True,
 		    GrabModeAsync, GrabModeAsync, CurrentTime)
 		    == GrabSuccess)
-			break;
+			return;
 		nanosleep(&interval, NULL);
 	}
 	fputs("Unable to grab keyboard", stderr);
@@ -179,10 +179,10 @@ int init_x(struct XValues *xv)
 	}
 	xv->screen_num = DefaultScreen(xv->display);
 	xv->root = RootWindow(xv->display, xv->screen_num);
-	xv->screen_width = DisplayWidth(xv->display, xv->screen_num);
-	xv->screen_height = DisplayHeight(xv->display, xv->screen_num);
 	xv->visual = DefaultVisual(xv->display, xv->screen_num);
 	xv->colormap = DefaultColormap(xv->display, xv->screen_num);
+	xv->screen_height = DisplayHeight(xv->display, xv->screen_num);
+	xv->screen_width = DisplayWidth(xv->display, xv->screen_num);
 
 	return 0;
 }
@@ -229,7 +229,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
               char *items[], int count)
 {
 	/* set items[0] to user input */
-	*items = malloc(BUFSIZE * sizeof(char));
+	*items = malloc(BUFSIZE+2 * sizeof(char));
 	**items = '\0';
 
 	char *filtered[count];
@@ -362,15 +362,15 @@ int handle_key(KeySym keysym, int state, char *line)
 		}
 
 	switch(keysym) {
+	case XK_Super_L:   case XK_Super_R:
+	case XK_Control_L: case XK_Control_R:
+	case XK_Shift_R:   case XK_Shift_L:
+		break;
 	case XK_Escape:
 		return TERM;
 		break;
 	case XK_Return:
 		return EXIT;
-		break;
-	case XK_Super_L:
-	case XK_Control_L: case XK_Control_R:
-	case XK_Shift_R: case XK_Shift_L:
 		break;
 	case XK_Up:
 		return -1;
@@ -383,10 +383,10 @@ int handle_key(KeySym keysym, int state, char *line)
 			*--pos = '\0';
 		break;
 	default:
-		if (pos - line < BUFSIZE) {
+		if (pos - line < BUFSIZE-1) {
 			*pos++ = keysym;
 			*pos = '\0';
-		}
+		} else
 		break;
 	}
 	
@@ -443,15 +443,14 @@ void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
                     struct XftValues *xftv, char *items[], int count)
 {
+
 	int total_displayed;
 	total_displayed = count;
-
-	wv->xwc.height = xftv->font->height * count + padding * 2;
 
 	XGlyphInfo ext;
 
 	int longest;
-	for (longest = 0; count--; ++items) {
+	for (longest = 0; count--; items++) {
 		XftTextExtentsUtf8(xv->display, xftv->font, *items,
 				   strlen(*items), &ext);
 
@@ -460,11 +459,12 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	}
 		
 	wv->xwc.width = longest + padding * 2;
+	wv->xwc.height = xftv->font->height * total_displayed + padding * 2;
 
 	/* We can always count on the top left corner of the window also being
 	   the location of the pointer, so (wv->xwc.x, wv->xwc.y), is also the
 	   the coordinates of the pointer. The screen height - mouse location
-	   is the current (old) height of the window. */
+	   is the current (old) height of the window.*/
 	if (wv->xwc.height > xv->screen_height - wv->xwc.y) {
 		if (wv->xwc.height > xv->screen_height) {
 			wv->xwc.y = 0;
@@ -472,6 +472,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			/* clip the menu if it extends beyond the screen */
 			total_displayed = (xv->screen_height - wv->xwc.y) /
 			                   xftv->font->height;
+			wv->xwc.height = xftv->font->height * total_displayed + padding * 2;
 		} else {
 			wv->xwc.y = xv->screen_height - wv->xwc.height;
 		}
@@ -482,10 +483,12 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 	/* X axis */
 	if (wv->xwc.width > xv->screen_width - wv->xwc.x) {
-		if (wv->xwc.width > xv->screen_width)
+		if (wv->xwc.width > xv->screen_width) {
 			wv->xwc.x = 0;
-		else
+			wv->xwc.width = xv->screen_width;
+		} else {
 			wv->xwc.x = xv->screen_width - wv->xwc.width;
+		}
 
 		XWarpPointer(xv->display, None, xv->root, 0, 0, 0, 0,
 			     wv->xwc.x, wv->xwc.y);
@@ -498,7 +501,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 }
 
 void draw_items(struct XftValues *xftv, char *items[], int count)
-{
+	{
 	int ascent, height;
 	ascent = xftv->font->ascent;
 	height = xftv->font->height;
