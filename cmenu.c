@@ -14,55 +14,8 @@
 
 int main(int argc, char *argv[])
 {
-	/* parse argv */
-	for (int i = 1; i < argc; ++i)
-		if (!strcmp(argv[i], "-v") ||
-		    !strcmp(argv[i], "--visible"))
-			itemsvisible = True;
-		else if (!strcmp(argv[i], "-f") ||
-		         !strcmp(argv[i], "--font"))
-			fontname = argv[++i];
-		else if (!strcmp(argv[i], "-fg") ||
-		         !strcmp(argv[i], "--foreground"))
-			wincolors[fgcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-afg") ||
-		         !strcmp(argv[i], "--active-foreground"))
-			wincolors[afgcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-bg") ||
-		         !strcmp(argv[i], "--backgroud"))
-			wincolors[bgcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-abg") ||
-		         !strcmp(argv[i], "--active-background"))
-			wincolors[abgcolor] = argv[++i];
-		else if (!strcmp(argv[i], "-b") ||
-		         !strcmp(argv[i], "--border"))
-			borderwidth = atoi(argv[++i]);
-		else if (!strcmp(argv[i], "-bc"),
-		         !strcmp(argv[i], "--border-color"))
-			wincolors[bordercolor] = argv[++i];
-		else if (!strcmp(argv[i], "-p") ||
-		         !strcmp(argv[i], "--padding"))
-			padding = atoi(argv[++i]);
-		else if (!strcmp(argv[i], "-pr") ||
-		         !strcmp(argv[i], "--prompt"))
-			inputprompt = argv[++i];
-		/*
-		else if (!strcmp(argv[i], "-pc") ||
-		         !strcmp(argv[i], "--prompt-color"))
-		*/
-		else if (!strcmp(argv[i], "-ip") ||
-		         !strcmp(argv[i], "--input-prefox"))
-			inputprefix = argv[++i];
-		else if (!strcmp(argv[i], "-is") ||
-		         !strcmp(argv[i], "--input-suffix"))
-			inputsuffix = argv[++i];
-		else {
-			printf("Unknown option: \"%s\"\n", argv[i]);
-			fputs("Usage: cmenu [-v] [-f font] [-fg color] [-afg color] [-bg color] [-abg color]\n"
-                              "             [-b width] [-bc color] [-p width] [-pr prompt]\n"
-                              "             [-ip prefix] [-is suffix]\n", stderr);
-			return 1;
-		}
+	if (parse_arguments(argc, argv) != 0)
+		return 1;
 
 	/* read stdin */
 	int count;
@@ -78,7 +31,7 @@ int main(int argc, char *argv[])
 	struct XftValues xftv;
 
 	if (init_x(&xv) != 0)
-		return 1;
+		return 2;
 
 	/* setup window values */
 	get_pointer(&xv, &pointerx, &pointery);
@@ -105,7 +58,7 @@ int main(int argc, char *argv[])
 	                          CWEventMask | CWBorderPixel, &wa);
 
 	if (init_xft(&xv, &wv, &xftv) != 0)
-		return 1;
+		return 3;
 
 	grab_keyboard(&xv);
 
@@ -122,6 +75,57 @@ int main(int argc, char *argv[])
 
 	terminate_xft(&xv, &xftv);
 	terminate_x(&xv, &wv);
+	return 0;
+}
+
+unsigned parse_arguments(int argc, char **argv)
+{
+	/* parse argv */
+	for (int i = 1; i < argc; ++i) {
+		if (!strcmp(argv[i], "-v") ||
+		    !strcmp(argv[i], "--visible"))
+			itemsvisible = True;
+		else if (!strcmp(argv[i], "-f") ||
+			 !strcmp(argv[i], "--font"))
+			fontname = argv[++i];
+		else if (!strcmp(argv[i], "-fg") ||
+			 !strcmp(argv[i], "--foreground"))
+			wincolors[fgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-afg") ||
+			 !strcmp(argv[i], "--active-foreground"))
+			wincolors[afgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-bg") ||
+			 !strcmp(argv[i], "--backgroud"))
+			wincolors[bgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-abg") ||
+			 !strcmp(argv[i], "--active-background"))
+			wincolors[abgcolor] = argv[++i];
+		else if (!strcmp(argv[i], "-b") ||
+			 !strcmp(argv[i], "--border"))
+			borderwidth = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-bc") ||
+			 !strcmp(argv[i], "--border-color"))
+			wincolors[bordercolor] = argv[++i];
+		else if (!strcmp(argv[i], "-p") ||
+			 !strcmp(argv[i], "--padding"))
+			padding = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-pr") ||
+			 !strcmp(argv[i], "--prompt"))
+			inputprompt = argv[++i];
+		else if (!strcmp(argv[i], "-ip") ||
+			 !strcmp(argv[i], "--input-prefox"))
+			inputprefix = argv[++i];
+		else if (!strcmp(argv[i], "-is") ||
+			 !strcmp(argv[i], "--input-suffix"))
+			inputsuffix = argv[++i];
+		else {
+			printf("Unknown option: \"%s\"\n", argv[i]);
+			fputs("Usage: cmenu [-v] [-f font] [-fg color] [-afg color] [-bg color] [-abg color]\n"
+			      "             [-b width] [-bc color] [-p width] [-pr prompt]\n"
+			      "             [-ip prefix] [-is suffix]\n", stderr);
+			return 1;
+		}
+	}
 	return 0;
 }
 
@@ -354,7 +358,7 @@ int handle_key(KeySym keysym, int state, char *line)
 		case 'n':
 			return 1;
 			break;
-		case'h':
+		case 'h':
 			if (pos - line > 0)
 				*--pos = '\0';
 			return 0;
@@ -461,22 +465,22 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	wv->xwc.width = longest + padding * 2;
 	wv->xwc.height = xftv->font->height * total_displayed + padding * 2;
 
-	/* We can always count on the top left corner of the window also being
-	   the location of the pointer, so (wv->xwc.x, wv->xwc.y), is also the
-	   the coordinates of the pointer. The screen height - mouse location
-	   is the current (old) height of the window.*/
+	/* Y axis */
 	if (wv->xwc.height > xv->screen_height - wv->xwc.y) {
+		/* if the window height is greater than the screen height */
 		if (wv->xwc.height > xv->screen_height) {
 			wv->xwc.y = 0;
 
-			/* clip the menu if it extends beyond the screen */
-			total_displayed = (xv->screen_height - wv->xwc.y) /
+			/* clip the menu items */
+			total_displayed = (xv->screen_height - wv->xwc.y - padding * 2) /
 			                   xftv->font->height;
 			wv->xwc.height = xftv->font->height * total_displayed + padding * 2;
 		} else {
+		/* if they menu needs to move up */
 			wv->xwc.y = xv->screen_height - wv->xwc.height;
 		}
 
+		/* mouse follows the window corner */
 		XWarpPointer(xv->display, None, xv->root, 0, 0, 0, 0,
 			     wv->xwc.x, wv->xwc.y);
 	}
@@ -501,7 +505,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 }
 
 void draw_items(struct XftValues *xftv, char *items[], int count)
-	{
+{
 	int ascent, height;
 	ascent = xftv->font->ascent;
 	height = xftv->font->height;
@@ -515,7 +519,7 @@ void draw_items(struct XftValues *xftv, char *items[], int count)
 }
 
 void draw_string(struct XValues *xv, struct WinValues *wv,
-                   struct XftValues *xftv, char *line, int index, short swap)
+                 struct XftValues *xftv, char *line, int index, short swap)
 {
 	int y, rheight, lheight;
 

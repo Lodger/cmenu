@@ -30,6 +30,7 @@ struct WinValues {
 	XWindowChanges xwc;
 };
 
+unsigned parse_arguments(int argc, char **argv);
 unsigned read_stdin(char **lines);
 unsigned read_args(int argc, char **argv);
 
