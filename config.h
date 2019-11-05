@@ -5,7 +5,8 @@ char *inputprompt = "menu";
 char *inputprefix = "\xc2\xbb";
 char *inputsuffix = "\xc2\xab";
 
-unsigned padding = 0;
+/* top, bottom, left, right */
+unsigned padding[] = { 0, 0, 0, 0 };
 unsigned borderwidth = 2;
 
 /* textcolor, stextcolor, bgcolor, sbgcolor, bordercolor */

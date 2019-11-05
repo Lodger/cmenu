@@ -106,10 +106,23 @@ unsigned parse_arguments(int argc, char **argv)
 		else if (!strcmp(argv[i], "-bc") ||
 			 !strcmp(argv[i], "--border-color"))
 			wincolors[bordercolor] = argv[++i];
-		else if (!strcmp(argv[i], "-p") ||
+		else if (!strcmp(argv[i], "--p") ||
 			 !strcmp(argv[i], "--padding"))
-			padding = atoi(argv[++i]);
+			padding[0] = padding[1] = padding[2] = padding[3] =
+			atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-pt") ||
+			 !strcmp(argv[i], "--padding-top"))
+			padding[0] = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-pb") ||
+			 !strcmp(argv[i], "--padding-bottom"))
+			padding[1] = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-pl") ||
+			 !strcmp(argv[i], "--padding-left"))
+			padding[2] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pr") ||
+			 !strcmp(argv[i], "--padding-right"))
+			padding[3] = atoi(argv[++i]);
+		else if (!strcmp(argv[i], "-pt") ||
 			 !strcmp(argv[i], "--prompt"))
 			inputprompt = argv[++i];
 		else if (!strcmp(argv[i], "-ip") ||
@@ -295,7 +308,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 
 		/* mouse mode */
 		case MotionNotify:
-			location = (e.xbutton.y - xftv->font->ascent - padding);
+			location = (e.xbutton.y - xftv->font->ascent - padding[0]);
 
 			if (e.xbutton.y < xftv->font->ascent +
 			    xftv->font->descent || count == 1 ||
@@ -462,8 +475,9 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			longest = ext.width;
 	}
 		
-	wv->xwc.width = longest + padding * 2;
-	wv->xwc.height = xftv->font->height * total_displayed + padding * 2;
+	wv->xwc.width = longest + padding[2] + padding[3];
+	wv->xwc.height = xftv->font->height * total_displayed
+	                 + padding[0] + padding[1];
 
 	/* Y axis */
 	if (wv->xwc.height > xv->screen_height - wv->xwc.y) {
@@ -472,9 +486,12 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			wv->xwc.y = 0;
 
 			/* clip the menu items */
-			total_displayed = (xv->screen_height - wv->xwc.y - padding * 2) /
-			                   xftv->font->height;
-			wv->xwc.height = xftv->font->height * total_displayed + padding * 2;
+			total_displayed = (xv->screen_height - wv->xwc.y
+			                  - padding[0] + padding[1])
+			                  / xftv->font->height;
+
+			wv->xwc.height = xftv->font->height * total_displayed +
+			                 padding[0] + padding[1];
 		} else {
 		/* if they menu needs to move up */
 			wv->xwc.y = xv->screen_height - wv->xwc.height;
@@ -511,9 +528,9 @@ void draw_items(struct XftValues *xftv, char *items[], int count)
 	height = xftv->font->height;
 
 	int line;
-	for (line = ascent + padding; count--; line += height, ++items) {
+	for (line = ascent + padding[0]; count--; line += height, ++items) {
 		XftDrawStringUtf8(xftv->draw, &xftv->colors[fgcolor],
-		                  xftv->font, padding, line, *items,
+		                  xftv->font, padding[2], line, *items,
 		                  strlen(*items));
 	}
 }
@@ -523,9 +540,9 @@ void draw_string(struct XValues *xv, struct WinValues *wv,
 {
 	int y, rheight, lheight;
 
-	y = xftv->font->ascent + xftv->font->descent + padding;
-	lheight = xftv->font->ascent + xftv->font->height + padding;
-	rheight = y - padding;
+	y = xftv->font->ascent + xftv->font->descent + padding[0];
+	lheight = xftv->font->ascent + xftv->font->height + padding[0];
+	rheight = y - padding[0];
 
 	/* calculate offsets */
 	y += xftv->font->height * index;
@@ -536,5 +553,5 @@ void draw_string(struct XValues *xv, struct WinValues *wv,
 
 	XftDrawStringUtf8(xftv->draw,
 	                  &xftv->colors[!swap ? afgcolor : fgcolor],
-	                  xftv->font, padding, lheight, line, strlen(line));
+	                  xftv->font, padding[2], lheight, line, strlen(line));
 }
