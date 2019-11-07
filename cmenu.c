@@ -106,7 +106,7 @@ unsigned parse_arguments(int argc, char **argv)
 		else if (!strcmp(argv[i], "-bc") ||
 			 !strcmp(argv[i], "--border-color"))
 			wincolors[bordercolor] = argv[++i];
-		else if (!strcmp(argv[i], "--p") ||
+		else if (!strcmp(argv[i], "-p") ||
 			 !strcmp(argv[i], "--padding"))
 			padding[0] = padding[1] = padding[2] = padding[3] =
 			atoi(argv[++i]);
@@ -122,7 +122,7 @@ unsigned parse_arguments(int argc, char **argv)
 		else if (!strcmp(argv[i], "-pr") ||
 			 !strcmp(argv[i], "--padding-right"))
 			padding[3] = atoi(argv[++i]);
-		else if (!strcmp(argv[i], "-pt") ||
+		else if (!strcmp(argv[i], "-pm") ||
 			 !strcmp(argv[i], "--prompt"))
 			inputprompt = argv[++i];
 		else if (!strcmp(argv[i], "-ip") ||
