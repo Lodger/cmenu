@@ -9,9 +9,6 @@ All the configuration options in config.h are also available through
 command-line options, however the defaults can easily be changed by adding them
 to config.h, and reinstalling.
 
-If you have a feature request, open up an issue or pull request and I'll do
-my best to add or resolve it quickly.
-
 Installation:
 	git clone https://github.com/emanresudab/cmenu
 	cd cmenu
