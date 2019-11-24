@@ -31,7 +31,7 @@ struct WinValues {
 };
 
 unsigned parse_arguments(int argc, char **argv);
-unsigned read_stdin(char **lines);
+int read_stdin(char ***lines);
 unsigned read_args(int argc, char **argv);
 
 /* X function prototypes */

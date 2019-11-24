@@ -19,9 +19,8 @@ int main(int argc, char *argv[])
 
 	/* read stdin */
 	int count;
-	char *items[MAXITEMS+1];
-	count = read_stdin(items+1);
-	++count;
+	char **items;
+	count = read_stdin(&items);
 
 	/* setup */
 	int pointerx, pointery;
@@ -130,7 +129,7 @@ unsigned parse_arguments(int argc, char **argv)
 			inputprefix = argv[++i];
 		else if (!strcmp(argv[i], "-is") ||
 			 !strcmp(argv[i], "--input-suffix"))
-			inputsuffix = argv[++i];
+p			inputsuffix = argv[++i];
 		else {
 			printf("Unknown option: \"%s\"\n", argv[i]);
 			fputs("Usage: cmenu [-v] [-f font] [-fg color] [-afg color] [-bg color] [-abg color]\n"
@@ -142,20 +141,43 @@ unsigned parse_arguments(int argc, char **argv)
 	return 0;
 }
 
-unsigned read_stdin(char **lines)
+int read_stdin(char ***lines)
 {
 	FILE *f;
-	f = stdin;
+	char *linebuf, *tmp, **realloctmp;
+	size_t size;
+	unsigned read, allocated;
 
-	int count;
-	char buf[BUFSIZE];
-	for (count = 0; fgets(buf, BUFSIZE, f); ++count) {
-		buf[strlen(buf)-1] = '\0'; /* remove newline */
-		*lines = malloc((sizeof(buf) + 1) * sizeof(char));
-		strcpy(*lines, buf);
-		++lines;
+	f = stdin;
+	size = 0;
+	read = 0;
+
+	allocated = BUFSIZE;
+	*lines = malloc(allocated * sizeof(char*));
+
+	while (getline(&linebuf, &size, f) > 0) {
+		linebuf[strlen(linebuf)-1] = '\0'; /* remove newline */
+		tmp = strdup(linebuf);
+		if (tmp == NULL)
+			return -1;
+		*(*lines + read) = tmp;
+		++read;
+
+		if (read == allocated) {
+			allocated *= 2;
+			realloctmp = realloc(*lines, allocated * sizeof(char*));
+			if (realloctmp == NULL) {
+				fprintf(stderr, "read_stdin: couldn't realloc %d bytes\n",
+					allocated);
+				return -1;
+			}
+			*lines = realloctmp;
+		}
 	}
-	return count;
+
+	free(linebuf);
+	printf("returning %d\n", read);
+	return read;
 }
 
 void get_pointer(struct XValues *xv, int *x, int *y)
