@@ -24,7 +24,8 @@ struct XftValues {
 	XftFont *font;
 	XftDraw *draw;
 
-	XftColor colors[2];
+	XftColor primaryfg;
+	XftColor activefg;
 };
 
 struct WinValues {

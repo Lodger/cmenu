@@ -14,8 +14,8 @@
 
 int main(int argc, char *argv[])
 {
-	if (parse_arguments(argc, argv) != 0)
-		return 1;
+//	if (parse_arguments(argc, argv) != 0)
+//		return 1;
 
 	/* read stdin */
 	int count;
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
 	count = read_stdin(&items);
 
 	/* setup */
-	int pointerx, pointery;
+//	int pointerx, pointery;
 
 	struct XValues xv;
 	struct WinValues wv;
@@ -35,21 +35,22 @@ int main(int argc, char *argv[])
 	if (init_window(&xv, &wv) != 0)
 		return 2;
 
-	if (init_xft(&xv, &wv, &xftv) != 0)
-		return 4;
+//	if (init_xft(&xv, &wv, &xftv) != 0)
+//		return 4;
 
-	grab_keyboard(&xv);
+//	grab_keyboard(&xv);
 
-	Cursor c;
-	c = XCreateFontCursor(xv.display, XC_question_arrow);
-	XDefineCursor(xv.display, wv.window, c);
+//	Cursor c;
+//	c = XCreateFontCursor(xv.display, XC_question_arrow);
+//	XDefineCursor(xv.display, wv.window, c);
 
 //	menu_run(&xv, &wv, &xftv, items, count);
 
 	while (count--)
 		free(items[count]);
+	free(items);
 
-	XWarpPointer(xv.display, None, xv.root, 0, 0, 0, 0, pointerx, pointery);
+//	XWarpPointer(xv.display, None, xv.root, 0, 0, 0, 0, pointerx, pointery);
 
 	terminate_xft(&xv, &xftv);
 	terminate_x(&xv, &wv);
@@ -155,7 +156,6 @@ int read_stdin(char ***lines)
 	}
 
 	free(linebuf);
-	printf("returning %d\n", read);
 	return read;
 }
 
@@ -207,6 +207,7 @@ int init_x(struct XValues *xv)
 
 void terminate_x(struct XValues *xv, struct WinValues *wv)
 {
+	XFree(wv->gc);
 	XDestroyWindow(xv->display, wv->window);
 	XCloseDisplay(xv->display);
 }
@@ -218,11 +219,6 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 
 	XColor background;
 	parse_and_allocate_xcolor(xv, wincolors[bgcolor], &background);
-
-	/* while we're here, create the graphics context */
-	XGCValues xgcv;
-	xgcv.background = background.pixel;
-	wv->gc = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
 
 	XSetWindowAttributes wa;
 	wa.override_redirect = True;
@@ -239,6 +235,11 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 	wv->window = XCreateWindow(xv->display, xv->root, wv->xwc.x, wv->xwc.y,
 	                           1, 1, borderwidth, CopyFromParent,
 	                           CopyFromParent, xv->visual, valuemask, &wa);
+
+	/* while we're here, create the graphics context */
+	XGCValues xgcv;
+	xgcv.background = background.pixel;
+	wv->gc = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
 
 	return 0;
 }
@@ -266,14 +267,21 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 		return 1;
 	}
 
-	for (int index = fgcolor; index <= abgcolor; ++index)
-		if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
-				       wincolors[index],
-		                       &xftv->colors[index])) {
-			fprintf(stderr, "Could not allocate color \"%s\"\n",
-				wincolors[index]);
-			return 1;
-		}
+	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
+			       wincolors[fgcolor],
+			       &xftv->primaryfg)) {
+		fprintf(stderr, "Could not allocate color \"%s\"\n",
+			wincolors[fgcolor]);
+		return 2;
+	}
+
+	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
+			       wincolors[afgcolor],
+			       &xftv->primaryfg)) {
+		fprintf(stderr, "Could not allocate color \"%s\"\n",
+			wincolors[afgcolor]);
+		return 2;
+	}
 
 	xftv->draw = XftDrawCreate(xv->display, wv->window, xv->visual,
 	                           xv->colormap);
@@ -282,11 +290,14 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 
 void terminate_xft(struct XValues *xv, struct XftValues *xftv)
 {
-	XftFontClose(xv->display, xftv->font);
-	for (int index = 0; index <= abgcolor; ++index)
-		XftColorFree(xv->display, xv->visual, xv->colormap,
-			     &xftv->colors[index]);
-	XftDrawDestroy(xftv->draw);
+//	XftFontClose(xv->display, xftv->font);
+
+	XftColorFree(xv->display, xv->visual, xv->colormap,
+	             &xftv->primaryfg);
+	XftColorFree(xv->display, xv->visual, xv->colormap,
+	             &xftv->activefg);
+
+//	XftDrawDestroy(xftv->draw);
 }
 
 void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
@@ -496,8 +507,8 @@ void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
                char *items[], int count, int shift)
 {
 	count = move_and_resize(xv, wv, xftv, items, count);
-	XftDrawRect(xftv->draw, &xftv->colors[bgcolor], 0, 0, wv->xwc.width,
-	            wv->xwc.height);
+//	XftDrawRect(xftv->draw, &xftv->colors[bgcolor], 0, 0, wv->xwc.width,
+//	            wv->xwc.height);
 	draw_items(xftv, items, count);
 
 	if (count > 1)
@@ -576,9 +587,9 @@ void draw_items(struct XftValues *xftv, char *items[], int count)
 
 	int line;
 	for (line = ascent + padding[0]; count--; line += height, ++items) {
-		XftDrawStringUtf8(xftv->draw, &xftv->colors[fgcolor],
-		                  xftv->font, padding[2], line, *items,
-		                  strlen(*items));
+//		XftDrawStringUtf8(xftv->draw, &xftv->colors[fgcolor],
+//		                  xftv->font, padding[2], line, *items,
+//		                  strlen(*items));
 	}
 }
 
@@ -595,10 +606,10 @@ void draw_string(struct XValues *xv, struct WinValues *wv,
 	y += xftv->font->height * index;
 	lheight += xftv->font->height * index;
 
-	XftDrawRect(xftv->draw, &xftv->colors[!swap ? abgcolor : bgcolor],
-	            0, y, wv->xwc.width, rheight);
+//	XftDrawRect(xftv->draw, &xftv->colors[!swap ? abgcolor : bgcolor],
+//	            0, y, wv->xwc.width, rheight);
 
-	XftDrawStringUtf8(xftv->draw,
-	                  &xftv->colors[!swap ? afgcolor : fgcolor],
-	                  xftv->font, padding[2], lheight, line, strlen(line));
+//	XftDrawStringUtf8(xftv->draw,
+//	                  &xftv->colors[!swap ? afgcolor : fgcolor],
+//	                  xftv->font, padding[2], lheight, line, strlen(line));
 }
