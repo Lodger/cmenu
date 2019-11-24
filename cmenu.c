@@ -32,32 +32,11 @@ int main(int argc, char *argv[])
 	if (init_x(&xv) != 0)
 		return 2;
 
-	/* setup window values */
-	get_pointer(&xv, &pointerx, &pointery);
-	wv.xwc.x = pointerx;
-	wv.xwc.y = pointery;
-
-	XColor borderpixel;
-	XParseColor(xv.display, xv.colormap, wincolors[bordercolor],
-	            &borderpixel);
-	XAllocColor(xv.display, xv.colormap, &borderpixel);
-
-	XSetWindowAttributes wa;
-	wa.override_redirect = True;
-	wa.background_pixel = WhitePixel(xv.display, xv.screen_num);
-	wa.border_pixel = borderpixel.pixel;
-	wa.event_mask = ExposureMask | KeyPressMask;
-
-	/* create the window */
-	wv.window = XCreateWindow(xv.display,
-	                          RootWindow(xv.display, xv.screen_num),
-	                          wv.xwc.x, wv.xwc.y, 1, 1, borderwidth,
-	                          CopyFromParent, CopyFromParent, xv.visual,
-	                          CWOverrideRedirect | CWBackPixel |
-	                          CWEventMask | CWBorderPixel, &wa);
+	if (init_window(&xv, &wv) != 0)
+		return 2;
 
 	if (init_xft(&xv, &wv, &xftv) != 0)
-		return 3;
+		return 4;
 
 	grab_keyboard(&xv);
 
@@ -65,7 +44,7 @@ int main(int argc, char *argv[])
 	c = XCreateFontCursor(xv.display, XC_question_arrow);
 	XDefineCursor(xv.display, wv.window, c);
 
-	menu_run(&xv, &wv, &xftv, items, count);
+//	menu_run(&xv, &wv, &xftv, items, count);
 
 	while (count--)
 		free(items[count]);
@@ -129,7 +108,7 @@ unsigned parse_arguments(int argc, char **argv)
 			inputprefix = argv[++i];
 		else if (!strcmp(argv[i], "-is") ||
 			 !strcmp(argv[i], "--input-suffix"))
-p			inputsuffix = argv[++i];
+			inputsuffix = argv[++i];
 		else {
 			printf("Unknown option: \"%s\"\n", argv[i]);
 			fputs("Usage: cmenu [-v] [-f font] [-fg color] [-afg color] [-bg color] [-abg color]\n"
@@ -232,9 +211,55 @@ void terminate_x(struct XValues *xv, struct WinValues *wv)
 	XCloseDisplay(xv->display);
 }
 
+int init_window(struct XValues *xv, struct WinValues *wv)
+{
+	XColor borderpixel;
+	parse_and_allocate_xcolor(xv, wincolors[bordercolor], &borderpixel);
+
+	XColor background;
+	parse_and_allocate_xcolor(xv, wincolors[bgcolor], &background);
+
+	/* while we're here, create the graphics context */
+	XGCValues xgcv;
+	xgcv.background = background.pixel;
+	wv->gc = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
+
+	XSetWindowAttributes wa;
+	wa.override_redirect = True;
+	wa.border_pixel = borderpixel.pixel;
+	wa.background_pixel = background.pixel;
+	wa.event_mask = ExposureMask | KeyPressMask;
+
+	unsigned long valuemask;
+	valuemask = CWOverrideRedirect | CWBackPixel | CWEventMask |
+	            CWBorderPixel;
+
+	get_pointer(xv, &wv->xwc.x, &wv->xwc.y);
+
+	wv->window = XCreateWindow(xv->display, xv->root, wv->xwc.x, wv->xwc.y,
+	                           1, 1, borderwidth, CopyFromParent,
+	                           CopyFromParent, xv->visual, valuemask, &wa);
+
+	return 0;
+}
+
+int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
+{
+	if (XParseColor(xv->display, xv->colormap, name, color) == 0) {
+		fprintf(stderr, "Could not parse color \"%s\"\n", name);
+		return -1;
+	}
+
+	if (XAllocColor(xv->display, xv->colormap, color) == 0) {
+		fprintf(stderr, "Could not allocate color \"%s\"\n", name);
+		return -2;
+	}
+
+	return 0;
+}
+
 int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 {
-	xftv->fontname = fontname;
 	xftv->font = XftFontOpenName(xv->display, xv->screen_num, fontname);
 	if (!xftv->font) {
 		fprintf(stderr, "Could not open font \"%s\"\n", fontname);

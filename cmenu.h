@@ -6,6 +6,8 @@
                   strlen(inputprompt))
 
 enum handle_key_exits {EXIT = 2, TERM};
+/* phasing these out, 0 for primary 1 for active */
+enum colors_ {primary, active};
 enum colors {fgcolor, afgcolor, bgcolor, abgcolor, bordercolor};
 
 struct XValues {
@@ -19,25 +21,28 @@ struct XValues {
 };
 
 struct XftValues {
-	char *fontname; XftFont *font;
+	XftFont *font;
 	XftDraw *draw;
 
-	XftColor colors[3];
+	XftColor colors[2];
 };
 
 struct WinValues {
 	Window window;
 	XWindowChanges xwc;
+
+	GC gc;
 };
 
 unsigned parse_arguments(int argc, char **argv);
 int read_stdin(char ***lines);
-unsigned read_args(int argc, char **argv);
 
 /* X function prototypes */
 int init_x(struct XValues *xv);
 void terminate_x(struct XValues *xv, struct WinValues *wv);
 void grab_keyboard(struct XValues *xv);
+int init_window(struct XValues *xv, struct WinValues *wv);
+int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color);
 
 /* Xft function prototypes */
 int init_xft(struct XValues *xv, struct WinValues *wv,
