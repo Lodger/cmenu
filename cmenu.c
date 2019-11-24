@@ -22,9 +22,6 @@ int main(int argc, char *argv[])
 	char **items;
 	count = read_stdin(&items);
 
-	/* setup */
-//	int pointerx, pointery;
-
 	struct XValues xv;
 	struct WinValues wv;
 	struct XftValues xftv;
@@ -35,22 +32,25 @@ int main(int argc, char *argv[])
 	if (init_window(&xv, &wv) != 0)
 		return 2;
 
-//	if (init_xft(&xv, &wv, &xftv) != 0)
-//		return 4;
+	if (init_xft(&xv, &wv, &xftv) != 0)
+		return 4;
 
-//	grab_keyboard(&xv);
+	grab_keyboard(&xv);
 
 //	Cursor c;
 //	c = XCreateFontCursor(xv.display, XC_question_arrow);
 //	XDefineCursor(xv.display, wv.window, c);
 
-//	menu_run(&xv, &wv, &xftv, items, count);
+	int px, py;
+	get_pointer(&xv, &px, &py);
+
+	menu_run(&xv, &wv, &xftv, items, count);
 
 	while (count--)
 		free(items[count]);
 	free(items);
 
-//	XWarpPointer(xv.display, None, xv.root, 0, 0, 0, 0, pointerx, pointery);
+	XWarpPointer(xv.display, None, xv.root, 0, 0, 0, 0, px, py);
 
 	terminate_xft(&xv, &xftv);
 	terminate_x(&xv, &wv);
@@ -59,7 +59,6 @@ int main(int argc, char *argv[])
 
 unsigned parse_arguments(int argc, char **argv)
 {
-	/* parse argv */
 	for (int i = 1; i < argc; ++i) {
 		if (!strcmp(argv[i], "-v") ||
 		    !strcmp(argv[i], "--visible"))
@@ -159,35 +158,6 @@ int read_stdin(char ***lines)
 	return read;
 }
 
-void get_pointer(struct XValues *xv, int *x, int *y)
-{
-	/* trash values */
-	Window ret_root, ret_child;
-	int ret_rootx, ret_rooty;
-	unsigned int ret_mask;
-
-	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
-	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
-	              x, y, &ret_mask);
-}
-
-void grab_keyboard(struct XValues *xv)
-{
-	struct timespec interval;
-	interval.tv_sec = 0;
-	interval.tv_nsec = 1000000;
-
-	for (int i = 0; i < 150; ++i) {
-		if (XGrabKeyboard(xv->display,
-		    RootWindow(xv->display, xv->screen_num), True,
-		    GrabModeAsync, GrabModeAsync, CurrentTime)
-		    == GrabSuccess)
-			return;
-		nanosleep(&interval, NULL);
-	}
-	fputs("Unable to grab keyboard", stderr);
-}
-
 int init_x(struct XValues *xv)
 {
 	xv->display = XOpenDisplay(NULL);
@@ -210,6 +180,21 @@ void terminate_x(struct XValues *xv, struct WinValues *wv)
 	XFree(wv->gc);
 	XDestroyWindow(xv->display, wv->window);
 	XCloseDisplay(xv->display);
+}
+
+int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
+{
+	if (XParseColor(xv->display, xv->colormap, name, color) == 0) {
+		fprintf(stderr, "Could not parse color \"%s\"\n", name);
+		return -1;
+	}
+
+	if (XAllocColor(xv->display, xv->colormap, color) == 0) {
+		fprintf(stderr, "Could not allocate color \"%s\"\n", name);
+		return -2;
+	}
+
+	return 0;
 }
 
 int init_window(struct XValues *xv, struct WinValues *wv)
@@ -244,21 +229,6 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 	return 0;
 }
 
-int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
-{
-	if (XParseColor(xv->display, xv->colormap, name, color) == 0) {
-		fprintf(stderr, "Could not parse color \"%s\"\n", name);
-		return -1;
-	}
-
-	if (XAllocColor(xv->display, xv->colormap, color) == 0) {
-		fprintf(stderr, "Could not allocate color \"%s\"\n", name);
-		return -2;
-	}
-
-	return 0;
-}
-
 int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 {
 	xftv->font = XftFontOpenName(xv->display, xv->screen_num, fontname);
@@ -266,7 +236,6 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 		fprintf(stderr, "Could not open font \"%s\"\n", fontname);
 		return 1;
 	}
-
 	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
 			       wincolors[fgcolor],
 			       &xftv->primaryfg)) {
@@ -274,7 +243,6 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 			wincolors[fgcolor]);
 		return 2;
 	}
-
 	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
 			       wincolors[afgcolor],
 			       &xftv->primaryfg)) {
@@ -282,7 +250,6 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 			wincolors[afgcolor]);
 		return 2;
 	}
-
 	xftv->draw = XftDrawCreate(xv->display, wv->window, xv->visual,
 	                           xv->colormap);
 	return 0;
@@ -290,201 +257,188 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 
 void terminate_xft(struct XValues *xv, struct XftValues *xftv)
 {
-//	XftFontClose(xv->display, xftv->font);
+	XftFontClose(xv->display, xftv->font);
 
 	XftColorFree(xv->display, xv->visual, xv->colormap,
 	             &xftv->primaryfg);
 	XftColorFree(xv->display, xv->visual, xv->colormap,
 	             &xftv->activefg);
 
-//	XftDrawDestroy(xftv->draw);
+	XftDrawDestroy(xftv->draw);
+}
+
+void get_pointer(struct XValues *xv, int *x, int *y)
+{
+	/* trash values */
+	Window ret_root, ret_child;
+	int ret_rootx, ret_rooty;
+	unsigned int ret_mask;
+
+	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
+	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
+	              x, y, &ret_mask);
+}
+
+int grab_keyboard(struct XValues *xv)
+{
+	struct timespec interval;
+	interval.tv_sec = 0;
+	interval.tv_nsec = 1000000;
+
+	for (int i = 0; i < ATTEMPTS; ++i) {
+		if (XGrabKeyboard(xv->display, xv->root, True, GrabModeAsync,
+				  GrabModeAsync, CurrentTime) == GrabSuccess)
+			return 0;
+		nanosleep(&interval, NULL);
+	}
+	fprintf(stderr, "Unable to grab keyboard");
+	return 1;
 }
 
 void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
-              char *items[], int count)
+              char **items, int count)
 {
 	/* set items[0] to user input */
-	*items = malloc(BUFSIZE+2 * sizeof(char));
-	**items = '\0';
-
 	char *filtered[count];
 
 	/* filtered[0] is user input + decorations */
-	*filtered = malloc(INPUTLEN * sizeof(char));
-
+	*filtered = malloc(LENINPUT * sizeof(char));
 	XSelectInput(xv->display, wv->window, ExposureMask |
 	                                      KeyPressMask |
 	                                      PointerMotionMask |
 	                                      ButtonPressMask);
 
+	char input[MAXINPUT];
+
 	XEvent e;
 	KeySym keysym;
-	int status, selected, location;
+	int keystatus, selected, location;
 
-	status = 0; /* do nothing */
+	keystatus = 0; /* do nothing */
 	selected = 0; /* initially, the mouse has not selected anything */
 	for (;;) {
 		XMapWindow(xv->display, wv->window);
 		XNextEvent(xv->display, &e);
 
+		/* xfilterevent somewhere? */
+		/* handle event */
 		switch(e.type) {
 		case Expose:
 			break;
 		case KeyPress:
-			keysym = XkbKeycodeToKeysym(xv->display,
-			                            e.xkey.keycode, 0,
-			                            (e.xkey.state & ShiftMask)
-			                            ? 1 : 0);
-			status = handle_key(keysym, e.xkey.state, *items);
-
-			/* program exits here */
-			switch(status)
-			case EXIT: {
-				puts(count > 1 ? filtered[1] : *items);
-			case TERM:
-				free(*filtered);
-				return;
-				break;
-			}
-			break;
-		case ButtonPress:
-			if (count == 1 || e.xbutton.y < xftv->font->ascent +
-			    xftv->font->descent)
-				continue;
-
-			selected = (e.xbutton.y - xftv->font->ascent) /
-			           xftv->font->height;
-
-			if (selected >= count-1) /* out of bounds */
-				break;
-
-			/* mouse mode exits here */
-			puts(filtered[selected+1]);
-			free(*filtered);
-			return;
-			break;
-
-		/* mouse mode */
-		case MotionNotify:
-			location = (e.xbutton.y - xftv->font->ascent - padding[0]);
-
-			if (e.xbutton.y < xftv->font->ascent +
-			    xftv->font->descent || count == 1 ||
-			    location / xftv->font->height == selected )
-				continue;
-
-			count = filter_input(items, *items, filtered+1) + 1;
-			rotate_array(filtered+1, count-1, 0);
-
-			/* hide old selection */
-			draw_string(xv, wv, xftv, filtered[selected+1],
-			              selected, 1); /* hide old selection */
-
-			selected = location / xftv->font->height;
-
-			if (location < 0 || selected >= count-1) {
-				selected = 0;
-				continue;
-			}
-
-			/* draw new selection */
-			draw_string(xv, wv, xftv, filtered[selected+1],
-			              selected, 0);
-			continue;
+			keystatus = handle_key(xv, e.xkey, input);
 			break;
 		case KeyRelease:
 			continue;
-			break;
+		default:
+			continue;
 		}
 
-		/* add the prompt, prefix, and suffix */
-		snprintf(*filtered, INPUTLEN, "%s%s%s%s",
+		/* update the menu */
+		snprintf(*filtered, LENINPUT, "%s%s%s%s",
 		         inputprompt, inputprefix, *items, inputsuffix);
 
-		count = filter_input(items, *items, filtered+1) + 1;
+		count = filter_input(items, filtered+1, input) + 1;
 
-		if (count > 1)
-			rotate_array(filtered+1, count-1, status);
+		switch(keystatus) {
+		case EXIT:
+			puts(count > 1 ? filtered[1] : input);
+		case TERM:
+			free(*filtered);
+			break;
+		case SHIFTUP:
+		case SHIFTDOWN:
+			if (count > 1)
+				rotate_array(filtered+1, count-1, keystatus);
+		}
+
+		/* will it segfault if I remove this if? */
+//		if (count > 1)
+//			rotate_array(filtered+1, count-1, keystatus);
 
 		/* status is used to determine the shift amount */
-		if (itemsvisible)
-			draw_menu(xv, wv, xftv, filtered, count, status);
-		else
-			draw_menu(xv, wv, xftv, filtered,
-				  (strlen(*items) > 0) ? count : 1, status);
+		draw_menu(xv, wv, xftv, filtered,
+			  strlen(input) > 0 || itemsvisible ? count : 1,
+			  keystatus);
 	}
 }
 
-int handle_key(KeySym keysym, int state, char *line)
+/*
+ * a long function, but it evaluates the key pressed and either adds to the
+ * input line, subtracts from it, or returns either TERM (exit without output),
+ * EXIT (exit normally), or SHIFTUP/SHIFTDOWN to rotate the menu items.
+ */
+int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline)
 {
 	static char *pos = NULL;
 	if (pos == NULL)
-		pos = line;
+		pos = inputline;
 
-	if (state & ControlMask)
-		switch(keysym) {
+	KeySym sym;
+	sym = XkbKeycodeToKeysym(xv->display, xkey.keycode, 0,
+	                         xkey.state & ShiftMask ? 1 : 0);
+
+	if (xkey.state & ControlMask)
+		switch(sym) {
 		case 'p':
-			return -1;
+			return SHIFTUP;
 			break;
 		case 'n':
-			return 1;
+			return SHIFTDOWN;
 			break;
 		case 'h':
-			if (pos - line > 0)
+			if (pos - inputline > 0)
 				*--pos = '\0';
 			return 0;
 			break;
 		}
 
-	switch(keysym) {
+	switch(sym) {
 	case XK_Super_L:   case XK_Super_R:
 	case XK_Control_L: case XK_Control_R:
 	case XK_Shift_R:   case XK_Shift_L:
 		break;
 	case XK_Escape:
 		return TERM;
-		break;
 	case XK_Return:
 		return EXIT;
-		break;
 	case XK_Up:
-		return -1;
-		break;
+		return SHIFTUP;
 	case XK_Down:
-		return 1;
-		break;
+		return SHIFTDOWN;
 	case XK_BackSpace:
-		if (pos - line > 0)
+		if (pos - inputline > 0)
 			*--pos = '\0';
 		break;
 	default:
-		if (pos - line < BUFSIZE-1) {
-			*pos++ = keysym;
+		if (pos - inputline < MAXINPUT - 1) {
+			*pos++ = sym;
 			*pos = '\0';
-		} else
+		}
 		break;
 	}
 	
 	return 0;
 }
 
-int filter_input(char **source, char *filter, char **out)
+int filter_input(char **source, char **out, char *filter)
 {
-	char **sourcep, **outp;
-	outp = out;
+	unsigned count;
 
-	for (char **sourcep = source+1; *sourcep; ++sourcep)
-		if ((strlen(*source) || itemsvisible) &&
-		    strstr(*sourcep, *source) == *sourcep)
-			*outp++ = *sourcep;
+	for (; *source; ++source) {
+		if (strlen(*source) && strstr(*source, filter) == *source) {
+			*out++ = *source;
+			++count;
+		}
+	}
 
-	return outp - out;
+	return count;
 }
 
-void rotate_array(char **array, int count, int shift)
+void rotate_array(char **array, int count, int delta)
 {
 	static int offset = 0;
-	offset = (offset + shift) % count;
+	offset = (offset + delta) % count;
 	if (offset > 0) {
 		char *tmp[count];
 
