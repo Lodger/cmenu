@@ -126,7 +126,7 @@ unsigned parse_arguments(int argc, char **argv)
 int read_stdin(char ***lines)
 {
 	FILE *f;
-	char *linebuf, *tmp, **realloctmp;
+	char *linebuf;
 	size_t size;
 	unsigned read, allocated;
 
@@ -227,7 +227,7 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 
 	/* 100 100  fix */
 	wv->window = XCreateWindow(xv->display, xv->root, wv->xwc.x, wv->xwc.y,
-	                           100, 100, borderwidth, CopyFromParent,
+	                           1, 1, borderwidth, CopyFromParent,
 	                           CopyFromParent, xv->visual, valuemask, &wa);
 
 	/* while we're here, create the graphics contexts */
@@ -322,7 +322,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	char input[MAXINPUT];
 	input[0] = '\0';
 
-	char *filtered[count], *tmp;
+	char *filtered[count];
 	*filtered = malloc(LENINPUT * sizeof(char));
 
 	if (*filtered == NULL) {
@@ -332,7 +332,8 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 
 	XEvent e;
 	KeySym keysym;
-	int keystatus, selected, location;
+	int keystatus, offset, subcount;
+	int selected, location;
 
 	keystatus = 0; /* do nothing */
 	selected = 0; /* initially, the mouse has not selected anything */
@@ -341,7 +342,6 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		XNextEvent(xv->display, &e);
 
 		/* xfilterevent somewhere? */
-		/* handle event */
 		switch(e.type) {
 		case Expose:
 			break;
@@ -355,25 +355,27 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		}
 
 		/* update the menu */
-		snprintf(*filtered, LENINPUT, "%s%s%s%s",
-		         inputprompt, inputprefix, input, inputsuffix);
+		subcount = filter_input(items, count, filtered+1, input) + 1;
 
-		int filcount;
-		filcount = filter_input(items, count, filtered+1, input) + 1;
+		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
+			offset += keystatus;
+
+		if (subcount > 1)
+			rotate_array(filtered+1, subcount-1, offset);
 
 		switch(keystatus) {
 		case EXIT:
-			puts(count > 1 ? filtered[1] : input);
+			puts(subcount > 1 ? filtered[1] : input);
 		case TERM:
 			free(*filtered);
 			return;
 		}
 
-		if (filcount > 1)
-			rotate_array(filtered+1, filcount-1, keystatus);
+		snprintf(*filtered, LENINPUT, "%s%s%s%s",
+		         inputprompt, inputprefix, input, inputsuffix);
 
 		redraw_menu(xv, wv, xftv, filtered,
-			    strlen(input) > 0 || itemsvisible ? filcount : 1);
+			    strlen(input) > 0 || itemsvisible ? subcount : 1);
 	}
 }
 
@@ -395,10 +397,10 @@ int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline)
 	if (xkey.state & ControlMask)
 		switch(sym) {
 		case 'p':
-			return SHIFTUP;
+			return SHIFTDOWN;
 			break;
 		case 'n':
-			return SHIFTDOWN;
+			return SHIFTUP;
 			break;
 		case 'h':
 			if (pos - inputline > 0)
@@ -417,15 +419,15 @@ int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline)
 	case XK_Return:
 		return EXIT;
 	case XK_Up:
-		return SHIFTDOWN;
-	case XK_Down:
 		return SHIFTUP;
+	case XK_Down:
+		return SHIFTDOWN;
 	case XK_BackSpace:
 		if (pos - inputline > 0)
 			*--pos = '\0';
 		break;
 	default:
-		if (pos - inputline < MAXINPUT - 0) {
+		if (pos - inputline < MAXINPUT - 1) {
 			*pos++ = sym;
 			*pos = '\0';
 		}
@@ -439,6 +441,7 @@ unsigned filter_input(char **source, unsigned count, char **out, char *filter)
 {
 	unsigned filtered;
 
+	filtered = 0;
 	for (; count--; ++source)
 		if (strlen(filter) && strstr(*source, filter) == *source) {
 			*out++ = *source;
@@ -448,10 +451,9 @@ unsigned filter_input(char **source, unsigned count, char **out, char *filter)
 	return filtered;
 }
 
-void rotate_array(char **array, int count, int delta)
+void rotate_array(char **array, int count, int offset)
 {
-	static int offset = 0;
-	offset = (offset + delta) % count;
+	offset = offset % count;
 
 	if (offset > 0) {
 		char *tmp[count];
@@ -509,19 +511,21 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	                 padding[top] + padding[bottom];
 
 	/* Y axis */
-	if (wv->xwc.height > xv->screen_height - wv->xwc.y) {
-		if (wv->xwc.height > xv->screen_height) {
+	if (wv->xwc.height + (borderwidth * 2) > xv->screen_height - wv->xwc.y) {
+		if (wv->xwc.height + (borderwidth * 2) > xv->screen_height) {
 			wv->xwc.y = 0;
 
 			/* clip the menu items */
 			total_displayed = (xv->screen_height - wv->xwc.y -
-			                   padding[top] - padding[bottom]) /
+			                   padding[top] - padding[bottom] -
+			                   (borderwidth* 2)) /
 			                  xftv->font->height;
 
 			wv->xwc.height = xftv->font->height * total_displayed +
 			                 padding[top] + padding[bottom];
 		} else {
-			wv->xwc.y = xv->screen_height - wv->xwc.height;
+			wv->xwc.y = xv->screen_height - wv->xwc.height -
+			            (borderwidth * 2);
 		}
 
 		/* mouse follows the window corner */
@@ -530,12 +534,13 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	}
 
 	/* X axis */
-	if (wv->xwc.width > xv->screen_width - wv->xwc.x) {
-		if (wv->xwc.width > xv->screen_width) {
+	if (wv->xwc.width + (borderwidth * 2) > xv->screen_width - wv->xwc.x) {
+		if (wv->xwc.width + (borderwidth * 2) > xv->screen_width) {
 			wv->xwc.x = 0;
 			wv->xwc.width = xv->screen_width;
 		} else {
-			wv->xwc.x = xv->screen_width - wv->xwc.width;
+			wv->xwc.x = xv->screen_width - wv->xwc.width -
+			            (borderwidth * 2);
 		}
 
 		XWarpPointer(xv->display, None, xv->root, 0, 0, 0, 0,
@@ -554,8 +559,10 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 void draw_items(struct XftValues *xftv, char **items, int count)
 {
 	int index;
-	for (index = 0; index < count; ++index)
+	for (index = 0; index < count; ++index) {
+		printf("%s\n", *items);
 		draw_string(xftv, *items++, index, xftv->primaryfg);
+	}
 }
 
 void draw_string(struct XftValues *xftv, char *line, int index, XftColor fg)
