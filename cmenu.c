@@ -41,9 +41,9 @@ int main(int argc, char *argv[])
 
 	grab_keyboard(&xv);
 
-//	Cursor c;
-//	c = XCreateFontCursor(xv.display, XC_question_arrow);
-//	XDefineCursor(xv.display, wv.window, c);
+	Cursor c;
+	c = XCreateFontCursor(xv.display, XC_question_arrow);
+	XDefineCursor(xv.display, wv.window, c);
 
 	int px, py;
 	get_pointer(&xv, &px, &py);
@@ -380,8 +380,10 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
 			offset += keystatus;
 
-		if (subcount > 1)
+		if (subcount > 1) {
+			printf("rotating %d\n", offset);
 			rotate_array(filtered+1, subcount-1, offset);
+		}
 
 		switch(keystatus) {
 		case EXIT:
@@ -482,23 +484,24 @@ unsigned filter_input(char **source, unsigned count, char **out, char *filter)
 
 void rotate_array(char **array, unsigned count, int offset)
 {
-	offset = offset % count;
 
 	if (offset > 0) {
+		offset = offset % count;
+
 		char *tmp[count];
 
 		memcpy(tmp, array + offset, (count - offset) * sizeof(char*));
 		memcpy(tmp + count - offset, array, offset * sizeof(char*));
 		memcpy(array, tmp, sizeof(tmp));
 	} else if (offset < 0) {
-		char *tmp[count];
 		offset = abs(offset);
+		offset = offset % count;
+
+		char *tmp[count];
 
 		memcpy(tmp, array + count - offset, offset * sizeof(char*));
 		memcpy(tmp + offset, array, (count - offset) * sizeof(char*));
 		memcpy(array, tmp, sizeof(tmp));
-
-		offset *= -1;
 	}
 }
 
