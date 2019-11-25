@@ -1,6 +1,6 @@
 CC := cc
 CCFLAGS := -Os
-LDFLAGS := -lX11 -lXft `pkg-config --cflags freetype2`
+LDFLAGS := -lm -lX11 -lXft `pkg-config --cflags freetype2`
 DEBUGFLAGS := -fsanitize=undefined -fsanitize=address -fno-sanitize-recover -ggdb3
 DEPS := cmenu.c cmenu.h config.h
 TARGETS := cmenu

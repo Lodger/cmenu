@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 #include <time.h>
 
 #include <X11/Xlib.h>
@@ -225,22 +226,22 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 
 	get_pointer(xv, &wv->xwc.x, &wv->xwc.y);
 
-	/* 100 100  fix */
 	wv->window = XCreateWindow(xv->display, xv->root, wv->xwc.x, wv->xwc.y,
 	                           1, 1, borderwidth, CopyFromParent,
 	                           CopyFromParent, xv->visual, valuemask, &wa);
 
 	/* while we're here, create the graphics contexts */
 	XGCValues xgcv;
-	xgcv.background = background.pixel;
-	wv->primaryGC = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
+	xgcv.foreground = background.pixel;
+	wv->primaryGC = XCreateGC(xv->display, wv->window, GCForeground, &xgcv);
+	XSetBackground(xv->display, wv->primaryGC, background.pixel);
 
 	if (parse_and_allocate_xcolor(xv, wincolors[abgcolor],
 	                              &background) != 0) {
 		return 1;
 	}
-	xgcv.background = background.pixel;
-	wv->activeGC = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
+	xgcv.foreground = background.pixel;
+	wv->activeGC = XCreateGC(xv->display, wv->window, GCForeground, &xgcv);
 
 	return 0;
 }
@@ -322,7 +323,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	char input[MAXINPUT];
 	input[0] = '\0';
 
-	char *filtered[count];
+	char *filtered[count+1];
 	*filtered = malloc(LENINPUT * sizeof(char));
 
 	if (*filtered == NULL) {
@@ -333,10 +334,10 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	XEvent e;
 	KeySym keysym;
 	int keystatus, offset, subcount;
-	int selected, location;
+	int hover, old;
 
 	keystatus = 0; /* do nothing */
-	selected = 0; /* initially, the mouse has not selected anything */
+	hover = old = 1; /* the mouse has not selected anything */
 	for (;;) {
 		XMapWindow(xv->display, wv->window);
 		XNextEvent(xv->display, &e);
@@ -348,8 +349,27 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		case KeyPress:
 			keystatus = handle_key(xv, e.xkey, input);
 			break;
-		case KeyRelease:
+		case MotionNotify:
+			hover = get_index_from_coords(wv, xftv, e.xbutton.x,
+			                              e.xbutton.y);
+			if (hover > 0 && hover <= subcount && hover != old) {
+				highlight_entry(xv, wv, xftv, old,
+				                wv->primaryGC);
+				draw_string(xftv, filtered[old], old,
+				            xftv->primaryfg);
+				highlight_entry(xv, wv, xftv, hover,
+				                wv->activeGC);
+				draw_string(xftv, filtered[hover], hover,
+				            xftv->activefg);
+				old = hover;
+			}
 			continue;
+		case ButtonPress:
+			if (hover > 0 && hover <= subcount) {
+				puts(filtered[hover]);
+				keystatus = TERM;
+			}
+			break;
 		default:
 			continue;
 		}
@@ -369,7 +389,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		case TERM:
 			free(*filtered);
 			return;
-		}
+  		}
 
 		snprintf(*filtered, LENINPUT, "%s%s%s%s",
 		         inputprompt, inputprefix, input, inputsuffix);
@@ -377,6 +397,14 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		redraw_menu(xv, wv, xftv, filtered,
 			    strlen(input) > 0 || itemsvisible ? subcount : 1);
 	}
+}
+
+int get_index_from_coords(struct WinValues *wv, struct XftValues *xftv,
+                          unsigned x, unsigned y)
+{
+	if (x > wv->xwc.x + wv->xwc.width)
+		return -1;
+	return floor(y / xftv->font->height);
 }
 
 /*
@@ -405,6 +433,7 @@ int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline)
 		case 'h':
 			if (pos - inputline > 0)
 				*--pos = '\0';
+
 			return 0;
 			break;
 		}
@@ -451,7 +480,7 @@ unsigned filter_input(char **source, unsigned count, char **out, char *filter)
 	return filtered;
 }
 
-void rotate_array(char **array, int count, int offset)
+void rotate_array(char **array, unsigned count, int offset)
 {
 	offset = offset % count;
 
@@ -511,7 +540,8 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	                 padding[top] + padding[bottom];
 
 	/* Y axis */
-	if (wv->xwc.height + (borderwidth * 2) > xv->screen_height - wv->xwc.y) {
+	if (wv->xwc.height + (borderwidth * 2) >
+	    xv->screen_height - wv->xwc.y) {
 		if (wv->xwc.height + (borderwidth * 2) > xv->screen_height) {
 			wv->xwc.y = 0;
 
@@ -556,13 +586,11 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	return total_displayed;
 }
 
-void draw_items(struct XftValues *xftv, char **items, int count)
+void draw_items(struct XftValues *xftv, char **items, unsigned count)
 {
 	int index;
-	for (index = 0; index < count; ++index) {
-		printf("%s\n", *items);
+	for (index = 0; index < count; ++index)
 		draw_string(xftv, *items++, index, xftv->primaryfg);
-	}
 }
 
 void draw_string(struct XftValues *xftv, char *line, int index, XftColor fg)
@@ -582,7 +610,7 @@ void highlight_entry(struct XValues *xv, struct WinValues *wv,
 	unsigned y;
 
 	y = xftv->font->height + padding[top] +
-		((index - 1) * (xftv->font->height));
+	    ((index - 1) * xftv->font->height);
 
 	XFillRectangle(xv->display, wv->window, bg, padding[right], y,
 		       wv->xwc.width, xftv->font->height);

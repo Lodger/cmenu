@@ -61,12 +61,14 @@ void redraw_menu(struct XValues *xv, struct WinValues *wv,
                  struct XftValues *xftv, char **items, int count);
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
                     struct XftValues *xftv, char **items, unsigned count);
-void draw_items(struct XftValues *xftv, char **items, int count);
+void draw_items(struct XftValues *xftv, char **items, unsigned count);
 void draw_string(struct XftValues *xftv, char *line, int index, XftColor fg);
+int get_index_from_coords(struct WinValues *wv, struct XftValues *xftv, unsigned x,
+                          unsigned y);
 
 /* utility functions */
 unsigned filter_input(char **source, unsigned count, char **out, char *filter);
 void get_pointer(struct XValues *xv, int *x, int *y);
-void rotate_array(char **array, int count, int dir);
+void rotate_array(char **array, unsigned count, int dir);
 void highlight_entry(struct XValues *xv, struct WinValues *wv,
                      struct XftValues *xftv, int index, GC bg);
