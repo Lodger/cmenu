@@ -7,10 +7,8 @@
 #define ATTEMPTS 150
 
 enum handle_key_exits {SHIFTDOWN = -1, SHIFTUP = 1, EXIT, TERM};
-enum padding_names {top, bottom, left, right};
-/* phasing these out, 0 for primary 1 for active (?) */
-enum colors_ {primary, active};
-enum colors {fgcolor, afgcolor, bgcolor, abgcolor, bordercolor};
+enum padding_names {TOP, BOTTOM, LEFT, RIGHT};
+enum colors {PRIMARYFG, ACTIVEFG, PRIMARYBG, ACTIVEBG, BORDER};
 
 struct XValues {
 	Display *display;

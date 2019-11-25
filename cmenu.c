@@ -66,28 +66,28 @@ unsigned parse_arguments(int argc, char **argv)
 	for (int i = 1; i < argc; ++i) {
 		if (!strcmp(argv[i], "-v") ||
 		    !strcmp(argv[i], "--visible"))
-			itemsvisible = True;
+			itemsvisible = 1;
 		else if (!strcmp(argv[i], "-f") ||
 			 !strcmp(argv[i], "--font"))
 			fontname = argv[++i];
 		else if (!strcmp(argv[i], "-fg") ||
 			 !strcmp(argv[i], "--foreground"))
-			wincolors[fgcolor] = argv[++i];
+			wincolors[PRIMARYFG] = argv[++i];
 		else if (!strcmp(argv[i], "-afg") ||
 			 !strcmp(argv[i], "--active-foreground"))
-			wincolors[afgcolor] = argv[++i];
+			wincolors[ACTIVEFG] = argv[++i];
 		else if (!strcmp(argv[i], "-bg") ||
 			 !strcmp(argv[i], "--backgroud"))
-			wincolors[bgcolor] = argv[++i];
+			wincolors[PRIMARYBG] = argv[++i];
 		else if (!strcmp(argv[i], "-abg") ||
 			 !strcmp(argv[i], "--active-background"))
-			wincolors[abgcolor] = argv[++i];
+			wincolors[ACTIVEBG] = argv[++i];
 		else if (!strcmp(argv[i], "-b") ||
 			 !strcmp(argv[i], "--border"))
 			borderwidth = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-bc") ||
 			 !strcmp(argv[i], "--border-color"))
-			wincolors[bordercolor] = argv[++i];
+			wincolors[BORDER] = argv[++i];
 		else if (!strcmp(argv[i], "-p") ||
 			 !strcmp(argv[i], "--padding"))
 			padding[0] = padding[1] = padding[2] = padding[3] =
@@ -96,13 +96,13 @@ unsigned parse_arguments(int argc, char **argv)
 			 !strcmp(argv[i], "--padding-top"))
 			padding[0] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pb") ||
-			 !strcmp(argv[i], "--padding-bottom"))
+			 !strcmp(argv[i], "--padding-BOTTOM"))
 			padding[1] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pl") ||
-			 !strcmp(argv[i], "--padding-left"))
+			 !strcmp(argv[i], "--padding-LEFT"))
 			padding[2] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pr") ||
-			 !strcmp(argv[i], "--padding-right"))
+			 !strcmp(argv[i], "--padding-RIGHT"))
 			padding[3] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pm") ||
 			 !strcmp(argv[i], "--prompt"))
@@ -187,12 +187,12 @@ void terminate_x(struct XValues *xv, struct WinValues *wv)
 
 int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
 {
-	if (XParseColor(xv->display, xv->colormap, name, color) == 0) {
+	if (!XParseColor(xv->display, xv->colormap, name, color)) {
 		fprintf(stderr, "Could not parse color \"%s\"\n", name);
 		return 1;
 	}
 
-	if (XAllocColor(xv->display, xv->colormap, color) == 0) {
+	if (!XAllocColor(xv->display, xv->colormap, color)) {
 		fprintf(stderr, "Could not allocate color \"%s\"\n", name);
 		return 2;
 	}
@@ -203,13 +203,13 @@ int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
 int init_window(struct XValues *xv, struct WinValues *wv)
 {
 	XColor borderpixel;
-	if (parse_and_allocate_xcolor(xv, wincolors[bordercolor],
+	if (parse_and_allocate_xcolor(xv, wincolors[BORDER],
 	                              &borderpixel) != 0) {
 		return 1;
 	}
 
 	XColor background;
-	if (parse_and_allocate_xcolor(xv, wincolors[bgcolor],
+	if (parse_and_allocate_xcolor(xv, wincolors[PRIMARYBG],
 	                              &background) != 0) {
 		return 1;
 	}
@@ -236,7 +236,7 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 	wv->primaryGC = XCreateGC(xv->display, wv->window, GCForeground, &xgcv);
 	XSetBackground(xv->display, wv->primaryGC, background.pixel);
 
-	if (parse_and_allocate_xcolor(xv, wincolors[abgcolor],
+	if (parse_and_allocate_xcolor(xv, wincolors[ACTIVEBG],
 	                              &background) != 0) {
 		return 1;
 	}
@@ -254,17 +254,17 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 		return 1;
 	}
 	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
-			       wincolors[fgcolor],
+			       wincolors[PRIMARYFG],
 			       &xftv->primaryfg)) {
 		fprintf(stderr, "Could not allocate color \"%s\"\n",
-			wincolors[fgcolor]);
+			wincolors[PRIMARYFG]);
 		return 2;
 	}
 	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
-			       wincolors[afgcolor],
+			       wincolors[ACTIVEFG],
 			       &xftv->activefg)) {
 		fprintf(stderr, "Could not allocate color \"%s\"\n",
-			wincolors[afgcolor]);
+			wincolors[ACTIVEFG]);
 		return 2;
 	}
 	xftv->draw = XftDrawCreate(xv->display, wv->window, xv->visual,
@@ -332,7 +332,6 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	}
 
 	XEvent e;
-	KeySym keysym;
 	int keystatus, offset, subcount;
 	int hover, old;
 
@@ -374,16 +373,20 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			continue;
 		}
 
-		/* update the menu */
-		subcount = filter_input(items, count, filtered+1, input) + 1;
+		/* update the contents */
+		if (itemsvisible && !strlen(input))
+			subcount = filter_input(items, count, filtered+1,
+			                        NULL) + 1;
+		else
+			subcount = filter_input(items, count, filtered+1,
+			                        input) + 1;
 
+		/* shift the contents */
 		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
 			offset += keystatus;
 
-		if (subcount > 1) {
-			printf("rotating %d\n", offset);
+		if (subcount > 1)
 			rotate_array(filtered+1, subcount-1, offset);
-		}
 
 		switch(keystatus) {
 		case EXIT:
@@ -393,11 +396,11 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			return;
   		}
 
+		/* redraw the menu */
 		snprintf(*filtered, LENINPUT, "%s%s%s%s",
 		         inputprompt, inputprefix, input, inputsuffix);
 
-		redraw_menu(xv, wv, xftv, filtered,
-			    strlen(input) > 0 || itemsvisible ? subcount : 1);
+		redraw_menu(xv, wv, xftv, filtered, subcount);
 	}
 }
 
@@ -474,7 +477,8 @@ unsigned filter_input(char **source, unsigned count, char **out, char *filter)
 
 	filtered = 0;
 	for (; count--; ++source)
-		if (strlen(filter) && strstr(*source, filter) == *source) {
+		if (filter == NULL ||
+		    (strlen(filter) && strstr(*source, filter) == *source)) {
 			*out++ = *source;
 			++filtered;
 		}
@@ -530,7 +534,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 	longest = 0;
 	while (count--) {
-		XftTextExtentsUtf8(xv->display, xftv->font, *items,
+		XftTextExtentsUtf8(xv->display, xftv->font, (FcChar8 *) *items,
 				   strlen(*items), &ext);
 		if (ext.width > longest)
 			longest = ext.width;
@@ -538,9 +542,9 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 		++items;
 	}
 		
-	wv->xwc.width = longest + padding[left] + padding[right];
+	wv->xwc.width = longest + padding[LEFT] + padding[RIGHT];
 	wv->xwc.height = xftv->font->height * total_displayed +
-	                 padding[top] + padding[bottom];
+	                 padding[TOP] + padding[BOTTOM];
 
 	/* Y axis */
 	if (wv->xwc.height + (borderwidth * 2) >
@@ -550,12 +554,12 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 			/* clip the menu items */
 			total_displayed = (xv->screen_height - wv->xwc.y -
-			                   padding[top] - padding[bottom] -
+			                   padding[TOP] - padding[BOTTOM] -
 			                   (borderwidth* 2)) /
 			                  xftv->font->height;
 
 			wv->xwc.height = xftv->font->height * total_displayed +
-			                 padding[top] + padding[bottom];
+			                 padding[TOP] + padding[BOTTOM];
 		} else {
 			wv->xwc.y = xv->screen_height - wv->xwc.height -
 			            (borderwidth * 2);
@@ -600,11 +604,11 @@ void draw_string(struct XftValues *xftv, char *line, int index, XftColor fg)
 {
 	unsigned lineheight;
 
-	lineheight = xftv->font->ascent + padding[top] +
+	lineheight = xftv->font->ascent + padding[TOP] +
 	             (index * xftv->font->height);
 
-	XftDrawStringUtf8(xftv->draw, &fg, xftv->font, padding[right],
-			  lineheight, line, strlen(line));
+	XftDrawStringUtf8(xftv->draw, &fg, xftv->font, padding[RIGHT],
+			  lineheight, (FcChar8 *) line, strlen(line));
 }
 
 void highlight_entry(struct XValues *xv, struct WinValues *wv,
@@ -612,9 +616,9 @@ void highlight_entry(struct XValues *xv, struct WinValues *wv,
 {
 	unsigned y;
 
-	y = xftv->font->height + padding[top] +
+	y = xftv->font->height + padding[TOP] +
 	    ((index - 1) * xftv->font->height);
 
-	XFillRectangle(xv->display, wv->window, bg, padding[right], y,
+	XFillRectangle(xv->display, wv->window, bg, padding[RIGHT], y,
 		       wv->xwc.width, xftv->font->height);
 }
