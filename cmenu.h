@@ -6,7 +6,8 @@
                   strlen(inputprompt))
 #define ATTEMPTS 150
 
-enum handle_key_exits {SHIFTUP = 1, SHIFTDOWN, EXIT, TERM};
+enum handle_key_exits {SHIFTDOWN = -1, SHIFTUP = 1, EXIT, TERM};
+enum padding_names {top, bottom, left, right};
 /* phasing these out, 0 for primary 1 for active (?) */
 enum colors_ {primary, active};
 enum colors {fgcolor, afgcolor, bgcolor, abgcolor, bordercolor};
@@ -33,7 +34,8 @@ struct WinValues {
 	Window window;
 	XWindowChanges xwc;
 
-	GC gc;
+	GC primaryGC;
+	GC activeGC;
 };
 
 unsigned parse_arguments(int argc, char **argv);
@@ -55,15 +57,16 @@ void terminate_xft(struct XValues *xv, struct XftValues *xftv);
 void menu_run(struct XValues *xv, struct WinValues *wv,
               struct XftValues *xftv, char *items[], int count);
 int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline);
-void draw_menu(struct XValues *xv, struct WinValues *wv,
-               struct XftValues *xftv, char *items[], int count, int shift);
+void redraw_menu(struct XValues *xv, struct WinValues *wv,
+                 struct XftValues *xftv, char **items, int count);
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
-                    struct XftValues *xftv, char *items[], int count);
-void draw_items(struct XftValues *xftv, char *items[], int count);
-void draw_string(struct XValues *xv, struct WinValues *wv,
-                   struct XftValues *xftv, char *line, int index, short swap);
+                    struct XftValues *xftv, char **items, unsigned count);
+void draw_items(struct XftValues *xftv, char **items, int count);
+void draw_string(struct XftValues *xftv, char *line, int index, XftColor fg);
 
 /* utility functions */
-int filter_input(char **source, char **out, char *filter);
+unsigned filter_input(char **source, unsigned count, char **out, char *filter);
 void get_pointer(struct XValues *xv, int *x, int *y);
 void rotate_array(char **array, int count, int dir);
+void highlight_entry(struct XValues *xv, struct WinValues *wv,
+                     struct XftValues *xftv, int index, GC bg);

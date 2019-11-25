@@ -14,26 +14,29 @@
 
 int main(int argc, char *argv[])
 {
-//	if (parse_arguments(argc, argv) != 0)
-//		return 1;
+	if (parse_arguments(argc, argv) != 0)
+		return 1;
 
 	/* read stdin */
 	int count;
 	char **items;
 	count = read_stdin(&items);
 
+	if (count < 1)
+		return 2;
+
 	struct XValues xv;
 	struct WinValues wv;
 	struct XftValues xftv;
 
 	if (init_x(&xv) != 0)
-		return 2;
+		return 3;
 
 	if (init_window(&xv, &wv) != 0)
-		return 2;
+		return 4;
 
 	if (init_xft(&xv, &wv, &xftv) != 0)
-		return 4;
+		return 5;
 
 	grab_keyboard(&xv);
 
@@ -136,21 +139,19 @@ int read_stdin(char ***lines)
 
 	while (getline(&linebuf, &size, f) > 0) {
 		linebuf[strlen(linebuf)-1] = '\0'; /* remove newline */
-		tmp = strdup(linebuf);
-		if (tmp == NULL)
+		*(*lines + read) = strdup(linebuf);
+		if (*(*lines + read) == NULL)
 			return -1;
-		*(*lines + read) = tmp;
 		++read;
 
 		if (read == allocated) {
 			allocated *= 2;
-			realloctmp = realloc(*lines, allocated * sizeof(char*));
-			if (realloctmp == NULL) {
+			*lines = realloc(*lines, allocated * sizeof(char*));
+			if (*lines == NULL) {
 				fprintf(stderr, "read_stdin: couldn't realloc %d bytes\n",
 					allocated);
 				return -1;
 			}
-			*lines = realloctmp;
 		}
 	}
 
@@ -177,7 +178,8 @@ int init_x(struct XValues *xv)
 
 void terminate_x(struct XValues *xv, struct WinValues *wv)
 {
-	XFree(wv->gc);
+	XFree(wv->primaryGC);
+	XFree(wv->activeGC);
 	XDestroyWindow(xv->display, wv->window);
 	XCloseDisplay(xv->display);
 }
@@ -186,12 +188,12 @@ int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
 {
 	if (XParseColor(xv->display, xv->colormap, name, color) == 0) {
 		fprintf(stderr, "Could not parse color \"%s\"\n", name);
-		return -1;
+		return 1;
 	}
 
 	if (XAllocColor(xv->display, xv->colormap, color) == 0) {
 		fprintf(stderr, "Could not allocate color \"%s\"\n", name);
-		return -2;
+		return 2;
 	}
 
 	return 0;
@@ -200,10 +202,16 @@ int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
 int init_window(struct XValues *xv, struct WinValues *wv)
 {
 	XColor borderpixel;
-	parse_and_allocate_xcolor(xv, wincolors[bordercolor], &borderpixel);
+	if (parse_and_allocate_xcolor(xv, wincolors[bordercolor],
+	                              &borderpixel) != 0) {
+		return 1;
+	}
 
 	XColor background;
-	parse_and_allocate_xcolor(xv, wincolors[bgcolor], &background);
+	if (parse_and_allocate_xcolor(xv, wincolors[bgcolor],
+	                              &background) != 0) {
+		return 1;
+	}
 
 	XSetWindowAttributes wa;
 	wa.override_redirect = True;
@@ -217,14 +225,22 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 
 	get_pointer(xv, &wv->xwc.x, &wv->xwc.y);
 
+	/* 100 100  fix */
 	wv->window = XCreateWindow(xv->display, xv->root, wv->xwc.x, wv->xwc.y,
-	                           1, 1, borderwidth, CopyFromParent,
+	                           100, 100, borderwidth, CopyFromParent,
 	                           CopyFromParent, xv->visual, valuemask, &wa);
 
-	/* while we're here, create the graphics context */
+	/* while we're here, create the graphics contexts */
 	XGCValues xgcv;
 	xgcv.background = background.pixel;
-	wv->gc = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
+	wv->primaryGC = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
+
+	if (parse_and_allocate_xcolor(xv, wincolors[abgcolor],
+	                              &background) != 0) {
+		return 1;
+	}
+	xgcv.background = background.pixel;
+	wv->activeGC = XCreateGC(xv->display, wv->window, GCBackground, &xgcv);
 
 	return 0;
 }
@@ -245,7 +261,7 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 	}
 	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
 			       wincolors[afgcolor],
-			       &xftv->primaryfg)) {
+			       &xftv->activefg)) {
 		fprintf(stderr, "Could not allocate color \"%s\"\n",
 			wincolors[afgcolor]);
 		return 2;
@@ -298,17 +314,21 @@ int grab_keyboard(struct XValues *xv)
 void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
               char **items, int count)
 {
-	/* set items[0] to user input */
-	char *filtered[count];
-
-	/* filtered[0] is user input + decorations */
-	*filtered = malloc(LENINPUT * sizeof(char));
 	XSelectInput(xv->display, wv->window, ExposureMask |
 	                                      KeyPressMask |
 	                                      PointerMotionMask |
 	                                      ButtonPressMask);
 
 	char input[MAXINPUT];
+	input[0] = '\0';
+
+	char *filtered[count], *tmp;
+	*filtered = malloc(LENINPUT * sizeof(char));
+
+	if (*filtered == NULL) {
+		fprintf(stderr, "Could not allocate bytes\n");
+		return;
+	}
 
 	XEvent e;
 	KeySym keysym;
@@ -336,30 +356,24 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 
 		/* update the menu */
 		snprintf(*filtered, LENINPUT, "%s%s%s%s",
-		         inputprompt, inputprefix, *items, inputsuffix);
+		         inputprompt, inputprefix, input, inputsuffix);
 
-		count = filter_input(items, filtered+1, input) + 1;
+		int filcount;
+		filcount = filter_input(items, count, filtered+1, input) + 1;
 
 		switch(keystatus) {
 		case EXIT:
 			puts(count > 1 ? filtered[1] : input);
 		case TERM:
 			free(*filtered);
-			break;
-		case SHIFTUP:
-		case SHIFTDOWN:
-			if (count > 1)
-				rotate_array(filtered+1, count-1, keystatus);
+			return;
 		}
 
-		/* will it segfault if I remove this if? */
-//		if (count > 1)
-//			rotate_array(filtered+1, count-1, keystatus);
+		if (filcount > 1)
+			rotate_array(filtered+1, filcount-1, keystatus);
 
-		/* status is used to determine the shift amount */
-		draw_menu(xv, wv, xftv, filtered,
-			  strlen(input) > 0 || itemsvisible ? count : 1,
-			  keystatus);
+		redraw_menu(xv, wv, xftv, filtered,
+			    strlen(input) > 0 || itemsvisible ? filcount : 1);
 	}
 }
 
@@ -403,42 +417,42 @@ int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline)
 	case XK_Return:
 		return EXIT;
 	case XK_Up:
-		return SHIFTUP;
-	case XK_Down:
 		return SHIFTDOWN;
+	case XK_Down:
+		return SHIFTUP;
 	case XK_BackSpace:
 		if (pos - inputline > 0)
 			*--pos = '\0';
 		break;
 	default:
-		if (pos - inputline < MAXINPUT - 1) {
+		if (pos - inputline < MAXINPUT - 0) {
 			*pos++ = sym;
 			*pos = '\0';
 		}
 		break;
 	}
-	
+
 	return 0;
 }
 
-int filter_input(char **source, char **out, char *filter)
+unsigned filter_input(char **source, unsigned count, char **out, char *filter)
 {
-	unsigned count;
+	unsigned filtered;
 
-	for (; *source; ++source) {
-		if (strlen(*source) && strstr(*source, filter) == *source) {
+	for (; count--; ++source)
+		if (strlen(filter) && strstr(*source, filter) == *source) {
 			*out++ = *source;
-			++count;
+			++filtered;
 		}
-	}
 
-	return count;
+	return filtered;
 }
 
 void rotate_array(char **array, int count, int delta)
 {
 	static int offset = 0;
 	offset = (offset + delta) % count;
+
 	if (offset > 0) {
 		char *tmp[count];
 
@@ -457,55 +471,56 @@ void rotate_array(char **array, int count, int delta)
 	}
 }
 
-void draw_menu(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
-               char *items[], int count, int shift)
+void redraw_menu(struct XValues *xv, struct WinValues *wv,
+                 struct XftValues *xftv, char **items, int count)
 {
 	count = move_and_resize(xv, wv, xftv, items, count);
-//	XftDrawRect(xftv->draw, &xftv->colors[bgcolor], 0, 0, wv->xwc.width,
-//	            wv->xwc.height);
+
+	XClearWindow(xv->display, wv->window);
 	draw_items(xftv, items, count);
 
-	if (count > 1)
-		draw_string(xv, wv, xftv, items[1], 0, 0);
+	if (count > 1) {
+		highlight_entry(xv, wv, xftv, 1, wv->activeGC);
+		draw_string(xftv, *(items + 1), 1, xftv->activefg);
+	}
 }
 
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
-                    struct XftValues *xftv, char *items[], int count)
+                    struct XftValues *xftv, char **items, unsigned count)
 {
-
 	int total_displayed;
 	total_displayed = count;
 
 	XGlyphInfo ext;
+	unsigned longest;
 
-	int longest;
-	for (longest = 0; count--; items++) {
+	longest = 0;
+	while (count--) {
 		XftTextExtentsUtf8(xv->display, xftv->font, *items,
 				   strlen(*items), &ext);
-
 		if (ext.width > longest)
 			longest = ext.width;
+
+		++items;
 	}
 		
-	wv->xwc.width = longest + padding[2] + padding[3];
-	wv->xwc.height = xftv->font->height * total_displayed
-	                 + padding[0] + padding[1];
+	wv->xwc.width = longest + padding[left] + padding[right];
+	wv->xwc.height = xftv->font->height * total_displayed +
+	                 padding[top] + padding[bottom];
 
 	/* Y axis */
 	if (wv->xwc.height > xv->screen_height - wv->xwc.y) {
-		/* if the window height is greater than the screen height */
 		if (wv->xwc.height > xv->screen_height) {
 			wv->xwc.y = 0;
 
 			/* clip the menu items */
-			total_displayed = (xv->screen_height - wv->xwc.y
-			                  - padding[0] + padding[1])
-			                  / xftv->font->height;
+			total_displayed = (xv->screen_height - wv->xwc.y -
+			                   padding[top] - padding[bottom]) /
+			                  xftv->font->height;
 
 			wv->xwc.height = xftv->font->height * total_displayed +
-			                 padding[0] + padding[1];
+			                 padding[top] + padding[bottom];
 		} else {
-		/* if they menu needs to move up */
 			wv->xwc.y = xv->screen_height - wv->xwc.height;
 		}
 
@@ -527,43 +542,41 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			     wv->xwc.x, wv->xwc.y);
 	}
 
+	unsigned long valuemask;
+	valuemask = CWX | CWY | CWWidth | CWHeight;
+
 	/* update window location */
-	XConfigureWindow(xv->display, wv->window,
-	                 CWX | CWY | CWWidth | CWHeight, &wv->xwc);
+	XConfigureWindow(xv->display, wv->window, valuemask, &wv->xwc);
+
 	return total_displayed;
 }
 
-void draw_items(struct XftValues *xftv, char *items[], int count)
+void draw_items(struct XftValues *xftv, char **items, int count)
 {
-	int ascent, height;
-	ascent = xftv->font->ascent;
-	height = xftv->font->height;
-
-	int line;
-	for (line = ascent + padding[0]; count--; line += height, ++items) {
-//		XftDrawStringUtf8(xftv->draw, &xftv->colors[fgcolor],
-//		                  xftv->font, padding[2], line, *items,
-//		                  strlen(*items));
-	}
+	int index;
+	for (index = 0; index < count; ++index)
+		draw_string(xftv, *items++, index, xftv->primaryfg);
 }
 
-void draw_string(struct XValues *xv, struct WinValues *wv,
-                 struct XftValues *xftv, char *line, int index, short swap)
+void draw_string(struct XftValues *xftv, char *line, int index, XftColor fg)
 {
-	int y, rheight, lheight;
+	unsigned lineheight;
 
-	y = xftv->font->ascent + xftv->font->descent + padding[0];
-	lheight = xftv->font->ascent + xftv->font->height + padding[0];
-	rheight = y - padding[0];
+	lineheight = xftv->font->ascent + padding[top] +
+	             (index * xftv->font->height);
 
-	/* calculate offsets */
-	y += xftv->font->height * index;
-	lheight += xftv->font->height * index;
+	XftDrawStringUtf8(xftv->draw, &fg, xftv->font, padding[right],
+			  lineheight, line, strlen(line));
+}
 
-//	XftDrawRect(xftv->draw, &xftv->colors[!swap ? abgcolor : bgcolor],
-//	            0, y, wv->xwc.width, rheight);
+void highlight_entry(struct XValues *xv, struct WinValues *wv,
+                     struct XftValues *xftv, int index, GC bg)
+{
+	unsigned y;
 
-//	XftDrawStringUtf8(xftv->draw,
-//	                  &xftv->colors[!swap ? afgcolor : fgcolor],
-//	                  xftv->font, padding[2], lheight, line, strlen(line));
+	y = xftv->font->height + padding[top] +
+		((index - 1) * (xftv->font->height));
+
+	XFillRectangle(xv->display, wv->window, bg, padding[right], y,
+		       wv->xwc.width, xftv->font->height);
 }
