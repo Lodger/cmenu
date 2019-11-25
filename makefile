@@ -2,7 +2,7 @@ CC := cc
 CCFLAGS := -Os
 LDFLAGS := -lm -lX11 -lXft `pkg-config --cflags freetype2`
 DEBUGFLAGS := -Wall -fsanitize=undefined -fsanitize=address -fno-sanitize-recover -ggdb3
-DEPS := cmenu.c cmenu.h config.h
+DEPS := cmenu.c config.h
 TARGETS := cmenu
 
 DESTDIR := /usr/local/bin
