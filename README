@@ -1,9 +1,10 @@
-cmenu is a lightweight, customizable menu for X, inspired by the menu included
-in the Calm window manager.  Newline-delimited arguments are read in from
-stdin, and are displayed on the screen for the user to choose from.  When a
-line has been selected, cmenu will write the chosen line to stdout.  If the
-provided input matches none of the supplied lines, the input will instead be
-written to stdout.
+cmenu is a lightweight and customizable menu for X, based on the menu included
+in the Calm Window Manager. Input lines are read from stdin and displayed in a
+menu next to the pointer to click on or search for. When the return key is
+pressed, the currently highlighted line is written to stdout, and the menu is
+closed. If no input lines match the search line, then the contents of the search
+line are instead written to stdout.
+
 
 All the configuration options in config.h are also available through
 command-line options, however the defaults can easily be changed by adding them
