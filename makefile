@@ -1,36 +1,39 @@
-CC := cc
+CC := gcc
 CCFLAGS := -Os
 LDFLAGS := -lm -lX11 -lXft `pkg-config --cflags freetype2`
 DEBUGFLAGS := -Wall -fsanitize=undefined -fsanitize=address -fno-sanitize-recover -ggdb3
-DEPS := cmenu.c config.h
-TARGETS := cmenu
 
 DESTDIR := /usr/local/bin
+TARGET := cmenu
+DEPS := util.o
 
+MANDIR := /usr/local/man/man1
 MANPAGE := cmenu.1
-MANDIR := /usr/man/man1
 
-all: $(TARGETS)
+all: $(TARGET)
 
-debug: $(DEPS)
-	@echo 'compiling with debug flags...'
-	@$(CC) $< $(CCFLAGS) $(LDFLAGS) $(DEBUGFLAGS) -o $(TARGETS)
-	@echo 'done.'
+debug: CCFLAGS += $(DEBUGFLAGS)
+debug: $(TARGET)
 
 clean:
-	@echo "installing..."
-	@rm -f $(TARGETS) $(DESTDIR)/$(TARGETS)
-	@rm -f $(MANDIR)/$(MANPAGE).gz
+	@echo "cleaning..."
+	rm -f $(DEPS)
+	rm -f $(DESTDIR)/$(TARGET)
+	rm -f $(MANDIR)/$(MANPAGE)
 	@echo "done."
 
 install:
 	@echo "installing..."
-	@mv $(TARGETS) $(DESTDIR)
-	@cp $(MANPAGE) $(MANDIR)
-	@gzip -f $(MANDIR)/$(MANPAGE)
-	@echo 'done.'
+	mv -f $(TARGET) $(DESTDIR)
+	install -m644 $(MANPAGE) $(MANDIR)/$(MANPAGE)
+	@echo "done."
 
-$(TARGETS): $(DEPS)
-	@echo 'compiling...'
-	@$(CC) $< $(CCFLAGS) $(LDFLAGS) -o $@
-	@echo 'done.'
+%.o: %.c 
+	@echo "building object files..."
+	$(CC) -c $(CCFLAGS) $(LDFLAGS) $<
+	@echo "done."
+
+$(TARGET): util.o
+	@echo "compiling..."
+	$(CC) $(CCFLAGS) $(LDFLAGS) cmenu.c util.o -o cmenu
+	@echo "done."

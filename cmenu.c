@@ -10,6 +10,7 @@
 #include <X11/keysym.h>
 
 #include "config.h"
+#include "util.h"
 
 #define MAXINPUT 100
 #define BUFSIZE 100
@@ -69,8 +70,8 @@ unsigned parse_arguments(int argc, char **argv)
 		else if (!strcmp(argv[i], "-abg") ||
 			 !strcmp(argv[i], "--active-background"))
 			wincolors[ACTIVEBG] = argv[++i];
-		else if (!strcmp(argv[i], "-b") ||
-			 !strcmp(argv[i], "--border"))
+		else if (!strcmp(argv[i], "-bw") ||
+			 !strcmp(argv[i], "--border-width"))
 			borderwidth = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-bc") ||
 			 !strcmp(argv[i], "--border-color"))
@@ -83,19 +84,19 @@ unsigned parse_arguments(int argc, char **argv)
 			 !strcmp(argv[i], "--padding-top"))
 			padding[0] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pb") ||
-			 !strcmp(argv[i], "--padding-BOTTOM"))
+			 !strcmp(argv[i], "--padding-bottom"))
 			padding[1] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pl") ||
-			 !strcmp(argv[i], "--padding-LEFT"))
+			 !strcmp(argv[i], "--padding-left"))
 			padding[2] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pr") ||
-			 !strcmp(argv[i], "--padding-RIGHT"))
+			 !strcmp(argv[i], "--padding-right"))
 			padding[3] = atoi(argv[++i]);
 		else if (!strcmp(argv[i], "-pm") ||
 			 !strcmp(argv[i], "--prompt"))
 			inputprompt = argv[++i];
 		else if (!strcmp(argv[i], "-ip") ||
-			 !strcmp(argv[i], "--input-prefox"))
+			 !strcmp(argv[i], "--input-prefix"))
 			inputprefix = argv[++i];
 		else if (!strcmp(argv[i], "-is") ||
 			 !strcmp(argv[i], "--input-suffix"))
@@ -109,42 +110,6 @@ unsigned parse_arguments(int argc, char **argv)
 		}
 	}
 	return 0;
-}
-
-int read_stdin(char ***lines)
-{
-	FILE *f;
-	char *linebuf;
-	size_t size;
-	unsigned read, allocated;
-
-	f = stdin;
-	size = 0;
-	read = 0;
-
-	allocated = BUFSIZE;
-	*lines = malloc(allocated * sizeof(char*));
-
-	while (getline(&linebuf, &size, f) > 0) {
-		linebuf[strlen(linebuf)-1] = '\0'; /* remove newline */
-		*(*lines + read) = strdup(linebuf);
-		if (*(*lines + read) == NULL)
-			return -1;
-		++read;
-
-		if (read == allocated) {
-			allocated *= 2;
-			*lines = realloc(*lines, allocated * sizeof(char*));
-			if (*lines == NULL) {
-				fprintf(stderr, "read_stdin: couldn't realloc %d bytes\n",
-					allocated);
-				return -1;
-			}
-		}
-	}
-
-	free(linebuf);
-	return read;
 }
 
 void highlight_entry(struct XValues *xv, struct WinValues *wv,
@@ -180,8 +145,8 @@ void draw_items(struct XftValues *xftv, char **items, unsigned count)
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
                     struct XftValues *xftv, char **items, unsigned count)
 {
-	int total_displayed;
-	total_displayed = count;
+	int available;
+	available = count;
 
 	XGlyphInfo ext;
 	unsigned longest;
@@ -197,7 +162,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	}
 		
 	wv->xwc.width = longest + padding[LEFT] + padding[RIGHT];
-	wv->xwc.height = xftv->font->height * total_displayed +
+	wv->xwc.height = xftv->font->height * available +
 	                 padding[TOP] + padding[BOTTOM];
 
 	/* Y axis */
@@ -207,12 +172,12 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			wv->xwc.y = 0;
 
 			/* clip the menu items */
-			total_displayed = (xv->screen_height - wv->xwc.y -
+			available = (xv->screen_height - wv->xwc.y -
 			                   padding[TOP] - padding[BOTTOM] -
 			                   (borderwidth* 2)) /
 			                  xftv->font->height;
 
-			wv->xwc.height = xftv->font->height * total_displayed +
+			wv->xwc.height = xftv->font->height * available +
 			                 padding[TOP] + padding[BOTTOM];
 		} else {
 			wv->xwc.y = xv->screen_height - wv->xwc.height -
@@ -244,7 +209,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	/* update window location */
 	XConfigureWindow(xv->display, wv->window, valuemask, &wv->xwc);
 
-	return total_displayed;
+	return available;
 }
 
 void redraw_menu(struct XValues *xv, struct WinValues *wv,
@@ -261,7 +226,7 @@ void redraw_menu(struct XValues *xv, struct WinValues *wv,
 	}
 }
 
-int get_index_from_coords(struct WinValues *wv, struct XftValues *xftv,
+int item_index_from_coords(struct WinValues *wv, struct XftValues *xftv,
                           unsigned x, unsigned y)
 {
 	if (x > wv->xwc.x + wv->xwc.width)
@@ -403,7 +368,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			keystatus = handle_key(xv, e.xkey, input);
 			break;
 		case MotionNotify:
-			hover = get_index_from_coords(wv, xftv, e.xbutton.x,
+			hover = item_index_from_coords(wv, xftv, e.xbutton.x,
 			                              e.xbutton.y);
 			if (hover > 0 && hover <= subcount && hover != old) {
 				highlight_entry(xv, wv, xftv, old,
@@ -468,22 +433,6 @@ void get_pointer(struct XValues *xv, int *x, int *y)
 	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
 	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
 	              x, y, &ret_mask);
-}
-
-int grab_keyboard(struct XValues *xv)
-{
-	struct timespec interval;
-	interval.tv_sec = 0;
-	interval.tv_nsec = 1000000;
-
-	for (int i = 0; i < 200; ++i) {
-		if (XGrabKeyboard(xv->display, xv->root, True, GrabModeAsync,
-				  GrabModeAsync, CurrentTime) == GrabSuccess)
-			return 0;
-		nanosleep(&interval, NULL);
-	}
-	fprintf(stderr, "Unable to grab keyboard");
-	return 1;
 }
 
 void terminate_xft(struct XValues *xv, struct XftValues *xftv)
@@ -619,25 +568,23 @@ int main(int argc, char *argv[])
 	/* read stdin */
 	int count;
 	char **items;
-	count = read_stdin(&items);
 
-	if (count < 1)
-		return 2;
+	count = read_stdin(&items);
 
 	struct XValues xv;
 	struct WinValues wv;
 	struct XftValues xftv;
 
 	if (init_x(&xv) != 0)
-		return 3;
+		return 2;
 
 	if (init_window(&xv, &wv) != 0)
-		return 4;
+		return 3;
 
 	if (init_xft(&xv, &wv, &xftv) != 0)
-		return 5;
+		return 4;
 
-	grab_keyboard(&xv);
+	grab_keyboard(xv.display, xv.root);
 
 	Cursor c;
 	c = XCreateFontCursor(xv.display, XC_question_arrow);

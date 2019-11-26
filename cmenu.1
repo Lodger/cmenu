@@ -1,96 +1,78 @@
-.TH cmenu 8 cmenu
+.TH cmenu 1 cmenu
 .SH NAME
-cmenu - A lightweight, customizable menu for X
-.SH SYNTOPSIS
-.B cmenu
-[-v] [-b color] [-sb color] [-t color] [-st color] [-f font] [-ip string] [-is string] [-p string]
+cmenu - menu for X
+.SH SYNOPSIS
+.B cmenu [options]
 .SH DESCRIPTION
 .B cmenu
-is a lightweight, customizable menu for X, inspured by the menu included in the Calm window manager.  newline-delimited arguments are read in from stdin, and are displayed on the screen for the user to choose from.  When a line has been selected,
-.B cmenu
-will write the chosenline to stdout.  If the provided input matches none of the spllied lines, the input will instead be written to stdout.
+is a lightweight and customizable menu for X, based on the menu included in the Calm Window Manager. Input lines are read from stdin and displayed in a menu next to the pointer to click on or search for. When the return key is pressed, the currently highlighted line is written to stdout, and the menu is closed. If no input lines match the search line, then the contents of the search line are instead written to stdout.
 .SH OPTIONS
 .B -v | --visible
 .br
-	All items are visible by default.
+	All items are visible by default
 
 .br
-.B -f | --font
-<color>
+.B -f | --font <font>
 .br
-	Specifies a font
+	Sets a font, fonts are specified with the X Freetype (XFT) format
 
 .br
-.B -fg | --foreground
-<color>
+.B -fg | --foreground <color>
 .br
-	Specifies the the foreground color
+	Sets the foreground color
 
 .br
-.B -afg | --active-foreground
-<color>
+.B -bg | --background <color>
 .br
-	Specifies the active foreground color
+	Sets the background color
 
 .br
-.B -bg | --background
-<color>
+.B -afg | --active-foreground <color>
 .br
-	Specifies the background color
+	Sets the active foreground color
 
 .br
-.B -sbg | --selected-background
-<color>
+.B -abg | --active-background <color>
 .br
-	Specifies the a background color
+	Sets the active background color
 
 .br
-.B -b | --border
-<width>
+.B -bw | --border-width <width>
 .br
-	Specifies the border width
+	Sets the border width
 
 .br
-.B -bc | --border-color
-<color>
+.B -bc | --border-color <color>
 .br
-	Specifies the border color
+	Sets the border color
 
 .br
-.B -p    | --padding
-<width>
+.B -p | --padding <width>
 .br
-	Specifies the inner padding witdh.
+	Sets the inner padding witdh for all four sides
 
 .br
-.B -pt | --padding-top
-<width>
+.B -pt | --padding-top <width>
 .br
-.B -pb | --padding-bottom
-<width>
+.B -pb | --padding-bottom <width>
 .br
-.B -pl | --padding-left
-<width>
+.B -pl | --padding-left <width>
 .br
-.B -pr | --padding-right
-<width>
+.B -pr | --padding-right <width>
 .br
-	Specifies the inner padding width for a specific direction
+	Sets the inner padding width for a specific direction
 
 .br
-.B -pm | --prompt
-<string>
+.B -pm | --prompt <string>
 .br
-	Specifies the input prompt
+	Sets the input prompt
 
 .br
-.B -ip --input-prefix
-<string>
+.B -ip | --input-prefix <string>
 .br
-	Specifies the input prefix
+	Sets the input prefix
 
 .br
-.B -is --input-suffix
-<string>
+.B -is | --input-suffix <string>
 .br
-	Specifies the input suffix
+	Sets the input suffix

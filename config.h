@@ -1,4 +1,3 @@
-/* default configuration values */
 char *fontname = "fixed-10";
 
 char *inputprompt = "menu";
@@ -10,11 +9,10 @@ unsigned padding[] = { 0, 0, 0, 0 };
 unsigned borderwidth = 2;
 
 /* textcolor, stextcolor, bgcolor, sbgcolor, bordercolor */
-char *wincolors[] = {"#000000",  /* textcolor */
-                     "#ffffff",  /* selected text color */
-                     "#ffffff",  /* background color */
-                     "#000000",  /* selected background color */
-                     "#000000"   /* border color */
-                     };
+char *wincolors[] = {"#000000",
+                     "#ffffff",
+                     "#ffffff",
+                     "#000000",
+                     "#000000"};
 
 int itemsvisible = 0;
