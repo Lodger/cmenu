@@ -1,5 +1,6 @@
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <math.h>
 #include <time.h>
 
@@ -236,7 +237,6 @@ int item_index_from_coords(struct WinValues *wv, struct XftValues *xftv,
 
 void rotate_array(char **array, unsigned count, int offset)
 {
-
 	if (offset > 0) {
 		offset = offset % count;
 
@@ -355,6 +355,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	int hover, old;
 
 	keystatus = 0; /* do nothing */
+	offset = subcount = 0;
 	hover = old = 1; /* the mouse has not selected anything */
 	for (;;) {
 		XMapWindow(xv->display, wv->window);

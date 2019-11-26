@@ -25,7 +25,7 @@ int read_stdin(char ***lines)
 			allocated *= 2;
 			*lines = realloc(*lines, allocated * sizeof(char*));
 			if (*lines == NULL) {
-				fprintf(stderr, "read_stdin: couldn't realloc %d bytes\n",
+				fprintf(stderr, "read_stdin: couldn't realloc %u bytes\n",
 					allocated);
 				return -1;
 			}

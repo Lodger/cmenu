@@ -1,5 +1,5 @@
 CC := gcc
-CCFLAGS := -Os
+CCFLAGS := -Os -std=c11 -pedantic
 LDFLAGS := -lm -lX11 -lXft `pkg-config --cflags freetype2`
 DEBUGFLAGS := -Wall -fsanitize=undefined -fsanitize=address -fno-sanitize-recover -ggdb3
 
@@ -28,12 +28,12 @@ install:
 	install -m644 $(MANPAGE) $(MANDIR)/$(MANPAGE)
 	@echo "done."
 
-%.o: %.c 
+%.o: %.c
 	@echo "building object files..."
 	$(CC) -c $(CCFLAGS) $(LDFLAGS) $<
 	@echo "done."
 
-$(TARGET): util.o
+$(TARGET): cmenu.c util.o
 	@echo "compiling..."
 	$(CC) $(CCFLAGS) $(LDFLAGS) cmenu.c util.o -o cmenu
 	@echo "done."
