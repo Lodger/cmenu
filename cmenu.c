@@ -120,7 +120,7 @@ void highlight_entry(struct XValues *xv, struct WinValues *wv,
 	y = xftv->font->height + padding[TOP] +
 	    ((index - 1) * xftv->font->height);
 
-	XFillRectangle(xv->display, wv->window, bg, padding[RIGHT], y,
+	XFillRectangle(xv->display, wv->window, bg, 0, y,
 		       wv->xwc.width, xftv->font->height);
 }
 
