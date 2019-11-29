@@ -14,6 +14,12 @@ int read_stdin(char ***lines)
 	allocated = BUFSIZE;
 	*lines = malloc(allocated * sizeof(char*));
 
+	if (*lines == NULL) {
+		fprintf(stderr, "read_stdin: couldn't realloc %u bytes\n",
+		        allocated);
+		return -1;
+	}
+
 	while (getline(&linebuf, &size, f) > 0) {
 		linebuf[strlen(linebuf)-1] = '\0'; /* remove newline */
 		*(*lines + read) = strdup(linebuf);
