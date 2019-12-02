@@ -5,6 +5,9 @@ pressed, the currently highlighted line is written to stdout, and the menu is
 closed. If no input lines match the search line, then the contents of the search
 line are instead written to stdout.
 
+A blank, prompt-only menu can be brought up by writing a blank string to stdin,
+IE
+	echo "" | cmenu
 
 All the configuration options in config.h are also available through
 command-line options, however the defaults can easily be changed by adding them
