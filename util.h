@@ -10,4 +10,5 @@
 #define BUFSIZE 100
 
 int read_stdin(char ***lines);
+void free_lines(char **lines, int count);
 int grab_keyboard(Display *display, Window root);

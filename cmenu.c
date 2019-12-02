@@ -596,12 +596,9 @@ int main(int argc, char *argv[])
 
 	menu_run(&xv, &wv, &xftv, items, count);
 
-	while (count--)
-		free(items[count]);
-	free(items);
-
 	XWarpPointer(xv.display, None, xv.root, 0, 0, 0, 0, px, py);
 
+	free_lines(items, count);
 	terminate_xft(&xv, &xftv);
 	terminate_x(&xv, &wv);
 	return 0;

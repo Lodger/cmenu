@@ -5,7 +5,7 @@ DEBUGFLAGS := -Wall -fsanitize=undefined -fsanitize=address -fno-sanitize-recove
 
 DESTDIR := /usr/local/bin
 TARGET := cmenu
-DEPS := util.o
+DEPS := cmenu.c util.o
 
 MANDIR := /usr/local/man/man1
 MANPAGE := cmenu.1
@@ -28,12 +28,12 @@ install:
 	install -m644 $(MANPAGE) $(MANDIR)/$(MANPAGE)
 	@echo "done."
 
-%.o: %.c
+%.o: %.c %.h
 	@echo "building object files..."
 	$(CC) -c $(CCFLAGS) $(LDFLAGS) $<
 	@echo "done."
 
-$(TARGET): cmenu.c util.o
+$(TARGET): $(DEPS)
 	@echo "compiling..."
-	$(CC) $(CCFLAGS) $(LDFLAGS) cmenu.c util.o -o cmenu
+	$(CC) $(CCFLAGS) $(LDFLAGS) $(DEPS) -o $(TARGET)
 	@echo "done."

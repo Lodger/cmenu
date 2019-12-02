@@ -42,6 +42,16 @@ int read_stdin(char ***lines)
 	return read;
 }
 
+void free_lines(char **lines, int count)
+{
+	if (count == 0)
+		count = -1;
+
+	while (count-- && *lines)
+		free(*lines++);
+	free(lines);
+}
+
 int grab_keyboard(Display *display, Window root)
 {
 	struct timespec interval;
