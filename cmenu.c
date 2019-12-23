@@ -161,7 +161,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 		++items;
 	}
-		
+
 	wv->xwc.width = longest + padding[LEFT] + padding[RIGHT];
 	wv->xwc.height = xftv->font->height * available +
 	                 padding[TOP] + padding[BOTTOM];

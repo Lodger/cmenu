@@ -15,15 +15,15 @@ int read_stdin(char ***lines)
 	*lines = malloc(allocated * sizeof(char*));
 
 	if (*lines == NULL) {
-		fprintf(stderr, "read_stdin: couldn't realloc %u bytes\n",
+		fprintf(stderr, "read_stdin: couldn't allocate %u bytes\n",
 		        allocated);
 		return -1;
 	}
 
 	while (getline(&linebuf, &size, f) > 0) {
 		linebuf[strlen(linebuf)-1] = '\0'; /* remove newline */
-		*(*lines + read) = strdup(linebuf);
-		if (*(*lines + read) == NULL)
+		(*lines)[read] = strdup(linebuf);
+		if ((*lines)[read] == NULL)
 			return -1;
 		++read;
 
@@ -38,17 +38,18 @@ int read_stdin(char ***lines)
 		}
 	}
 
+	(*lines)[read] = '\0';
 	free(linebuf);
 	return read;
 }
 
 void free_lines(char **lines, int count)
 {
-	if (count == 0)
-		count = -1;
+	char **lp;
 
+	lp = lines;
 	while (count-- && *lines)
-		free(*lines++);
+		free(*lp++);
 	free(lines);
 }
 
