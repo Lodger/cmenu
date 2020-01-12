@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include <time.h>
 
 #include <X11/Xlib.h>
 #include <X11/XKBlib.h>
@@ -12,6 +11,7 @@
 
 #include "config.h"
 #include "util.h"
+#include "xutil.h"
 
 #define MAXINPUT 100
 #define BUFSIZE 100
@@ -174,9 +174,9 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 			/* clip the menu items */
 			available = (xv->screen_height - wv->xwc.y -
-			                   padding[TOP] - padding[BOTTOM] -
-			                   (borderwidth* 2)) /
-			                  xftv->font->height;
+			             padding[TOP] - padding[BOTTOM] -
+			             (borderwidth* 2)) /
+			            xftv->font->height;
 
 			wv->xwc.height = xftv->font->height * available +
 			                 padding[TOP] + padding[BOTTOM];
@@ -228,48 +228,11 @@ void redraw_menu(struct XValues *xv, struct WinValues *wv,
 }
 
 int item_index_from_coords(struct WinValues *wv, struct XftValues *xftv,
-                          unsigned x, unsigned y)
+                           unsigned x, unsigned y)
 {
 	if (x > wv->xwc.x + wv->xwc.width)
 		return -1;
 	return floor(y / xftv->font->height);
-}
-
-void rotate_array(char **array, unsigned count, int offset)
-{
-	if (offset > 0) {
-		offset = offset % count;
-
-		char *tmp[count];
-
-		memcpy(tmp, array + offset, (count - offset) * sizeof(char*));
-		memcpy(tmp + count - offset, array, offset * sizeof(char*));
-		memcpy(array, tmp, sizeof(tmp));
-	} else if (offset < 0) {
-		offset = abs(offset);
-		offset = offset % count;
-
-		char *tmp[count];
-
-		memcpy(tmp, array + count - offset, offset * sizeof(char*));
-		memcpy(tmp + offset, array, (count - offset) * sizeof(char*));
-		memcpy(array, tmp, sizeof(tmp));
-	}
-}
-
-unsigned filter_input(char **source, unsigned count, char **out, char *filter)
-{
-	unsigned filtered;
-
-	filtered = 0;
-	for (; count--; ++source)
-		if (filter == NULL ||
-		    (strlen(filter) && strstr(*source, filter) == *source)) {
-			*out++ = *source;
-			++filtered;
-		}
-
-	return filtered;
 }
 
 /*
@@ -361,7 +324,6 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		XMapWindow(xv->display, wv->window);
 		XNextEvent(xv->display, &e);
 
-		/* xfilterevent somewhere? */
 		switch(e.type) {
 		case Expose:
 			break;
@@ -424,18 +386,6 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	}
 }
 
-void get_pointer(struct XValues *xv, int *x, int *y)
-{
-	/* trash values */
-	Window ret_root, ret_child;
-	int ret_rootx, ret_rooty;
-	unsigned int ret_mask;
-
-	XQueryPointer(xv->display, RootWindow(xv->display, xv->screen_num),
-	              &ret_root, &ret_child, &ret_rootx, &ret_rooty,
-	              x, y, &ret_mask);
-}
-
 void terminate_xft(struct XValues *xv, struct XftValues *xftv)
 {
 	XftFontClose(xv->display, xftv->font);
@@ -483,32 +433,17 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 	return 0;
 }
 
-int parse_and_allocate_xcolor(struct XValues *xv, char *name, XColor *color)
-{
-	if (!XParseColor(xv->display, xv->colormap, name, color)) {
-		fprintf(stderr, "Could not parse color \"%s\"\n", name);
-		return 1;
-	}
-
-	if (!XAllocColor(xv->display, xv->colormap, color)) {
-		fprintf(stderr, "Could not allocate color \"%s\"\n", name);
-		return 2;
-	}
-
-	return 0;
-}
-
 int init_window(struct XValues *xv, struct WinValues *wv)
 {
 	XColor borderpixel;
-	if (parse_and_allocate_xcolor(xv, wincolors[BORDER],
-	                              &borderpixel) != 0) {
+	if (parse_and_allocate_xcolor(xv->display, xv->colormap,
+	                              wincolors[BORDER], &borderpixel) != 0) {
 		return 1;
 	}
 
 	XColor background;
-	if (parse_and_allocate_xcolor(xv, wincolors[PRIMARYBG],
-	                              &background) != 0) {
+	if (parse_and_allocate_xcolor(xv->display, xv->colormap,
+	                              wincolors[PRIMARYBG], &background) != 0) {
 		return 1;
 	}
 
@@ -522,7 +457,7 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 	valuemask = CWOverrideRedirect | CWBackPixel | CWEventMask |
 	            CWBorderPixel;
 
-	get_pointer(xv, &wv->xwc.x, &wv->xwc.y);
+	get_pointer_location(xv->display, xv->root, &wv->xwc.x, &wv->xwc.y);
 
 	wv->window = XCreateWindow(xv->display, xv->root, wv->xwc.x, wv->xwc.y,
 	                           1, 1, borderwidth, CopyFromParent,
@@ -534,8 +469,8 @@ int init_window(struct XValues *xv, struct WinValues *wv)
 	wv->primaryGC = XCreateGC(xv->display, wv->window, GCForeground, &xgcv);
 	XSetBackground(xv->display, wv->primaryGC, background.pixel);
 
-	if (parse_and_allocate_xcolor(xv, wincolors[ACTIVEBG],
-	                              &background) != 0) {
+	if (parse_and_allocate_xcolor(xv->display, xv->colormap,
+	                              wincolors[ACTIVEBG], &background) != 0) {
 		return 1;
 	}
 	xgcv.foreground = background.pixel;
@@ -592,7 +527,7 @@ int main(int argc, char *argv[])
 	XDefineCursor(xv.display, wv.window, c);
 
 	int px, py;
-	get_pointer(&xv, &px, &py);
+	get_pointer_location(xv.display, xv.root, &px, &py);
 
 	menu_run(&xv, &wv, &xftv, items, count);
 

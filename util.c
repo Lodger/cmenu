@@ -1,5 +1,8 @@
 #include "util.h"
 
+/* Read in and store arbitrary number of lines from stdin. Null terminated.
+ * Returns the number of lines read.
+ */
 int read_stdin(char ***lines)
 {
 	FILE *f;
@@ -12,16 +15,16 @@ int read_stdin(char ***lines)
 	read = 0;
 
 	allocated = BUFSIZE;
-	*lines = malloc(allocated * sizeof(char*));
-
-	if (*lines == NULL) {
+	if ((*lines = malloc(allocated * sizeof(char*))) == NULL) {
 		fprintf(stderr, "read_stdin: couldn't allocate %u bytes\n",
 		        allocated);
 		return -1;
+
 	}
 
 	while (getline(&linebuf, &size, f) > 0) {
 		linebuf[strlen(linebuf)-1] = '\0'; /* remove newline */
+
 		(*lines)[read] = strdup(linebuf);
 		if ((*lines)[read] == NULL)
 			return -1;
@@ -53,18 +56,39 @@ void free_lines(char **lines, int count)
 	free(lines);
 }
 
-int grab_keyboard(Display *display, Window root)
+int filter_input(char **source, unsigned count, char **out, char *filter)
 {
-	struct timespec interval;
-	interval.tv_sec = 0;
-	interval.tv_nsec = 1000000;
+	unsigned filtered;
 
-	for (int i = 0; i < 200; ++i) {
-		if (XGrabKeyboard(display, root, True, GrabModeAsync,
-				  GrabModeAsync, CurrentTime) == GrabSuccess)
-			return 0;
-		nanosleep(&interval, NULL);
+	filtered = 0;
+	for (; count--; ++source)
+		if (filter == NULL ||
+		    (strlen(filter) && strstr(*source, filter) == *source)) {
+			*out++ = *source;
+			++filtered;
+		}
+
+	return filtered;
+}
+
+void rotate_array(char **array, unsigned count, int offset)
+{
+	if (offset > 0) {
+		offset = offset % count;
+
+		char *tmp[count];
+
+		memcpy(tmp, array + offset, (count - offset) * sizeof(char*));
+		memcpy(tmp + count - offset, array, offset * sizeof(char*));
+		memcpy(array, tmp, sizeof(tmp));
+	} else if (offset < 0) {
+		offset = abs(offset);
+		offset = offset % count;
+
+		char *tmp[count];
+
+		memcpy(tmp, array + count - offset, offset * sizeof(char*));
+		memcpy(tmp + offset, array, (count - offset) * sizeof(char*));
+		memcpy(array, tmp, sizeof(tmp));
 	}
-	fprintf(stderr, "Unable to grab keyboard");
-	return 1;
 }
