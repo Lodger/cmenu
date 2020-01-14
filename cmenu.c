@@ -27,7 +27,7 @@ char *inputprefix = "\xc2\xbb";
 char *inputsuffix = "\xc2\xab";
 
 /* top, bottom, left, right */
-unsigned padding[] = { 0, 0, 0, 0 };
+unsigned padding[] = {0, 0, 0, 0};
 unsigned borderwidth = 2;
 
 /* textcolor, stextcolor, bgcolor, sbgcolor, bordercolor */
@@ -247,11 +247,36 @@ void redraw_menu(struct XValues *xv, struct WinValues *wv,
 }
 
 int item_index_from_coords(struct WinValues *wv, struct XftValues *xftv,
-                           unsigned x, unsigned y)
+                           int x, int y)
 {
+	if (x < 0 || y < 0)
+		return -1;
+
 	if (x > wv->xwc.x + wv->xwc.width)
 		return -1;
+
 	return floor(y / xftv->font->height);
+}
+
+unsigned handle_motion(struct XValues *xv, struct WinValues *wv,
+                       struct XftValues *xftv, char **items, unsigned count,
+                       int x, int y)
+{
+	static unsigned current = 0;
+	static unsigned prev = 0;
+
+	current = item_index_from_coords(wv, xftv, x, y);
+
+	if (current > 0 && current < count && current != prev) {
+		highlight_entry(xv, wv, xftv, prev, wv->primaryGC);
+		draw_string(xftv, items[prev], prev, xftv->primaryFG);
+		highlight_entry(xv, wv, xftv, current, wv->activeGC);
+		draw_string(xftv, items[current], current, xftv->activeFG);
+
+		prev = current;
+	}
+
+	return current;
 }
 
 /*
@@ -289,6 +314,7 @@ int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline)
 	case XK_Super_L:   case XK_Super_R:
 	case XK_Control_L: case XK_Control_R:
 	case XK_Shift_R:   case XK_Shift_L:
+	case XK_Alt_L:     case XK_Alt_R:
 		break;
 	case XK_Escape:
 		return TERM;
@@ -333,12 +359,12 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	}
 
 	XEvent e;
-	int keystatus, offset, subcount;
-	int hover, old;
+	int action, offset, subcount;
+	unsigned hover; /* mouse selection */
 
-	keystatus = 0; /* do nothing */
+	action = 0; /* do nothing */
+	hover = 0;
 	offset = subcount = 0;
-	hover = old = 1; /* the mouse has not selected anything */
 	for (;;) {
 		XMapWindow(xv->display, wv->window);
 		XNextEvent(xv->display, &e);
@@ -347,27 +373,16 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		case Expose:
 			break;
 		case KeyPress:
-			keystatus = handle_key(xv, e.xkey, input);
+			action = handle_key(xv, e.xkey, input);
 			break;
 		case MotionNotify:
-			hover = item_index_from_coords(wv, xftv, e.xbutton.x,
-			                              e.xbutton.y);
-			if (hover > 0 && hover <= subcount && hover != old) {
-				highlight_entry(xv, wv, xftv, old,
-				                wv->primaryGC);
-				draw_string(xftv, filtered[old], old,
-				            xftv->primaryFG);
-				highlight_entry(xv, wv, xftv, hover,
-				                wv->activeGC);
-				draw_string(xftv, filtered[hover], hover,
-				            xftv->activeFG);
-				old = hover;
-			}
+			hover = handle_motion(xv, wv, xftv, filtered, subcount,
+			                      e.xbutton.x, e.xbutton.y);
 			continue;
 		case ButtonPress:
 			if (hover > 0 && hover <= subcount) {
 				puts(filtered[hover]);
-				keystatus = TERM;
+				action = TERM;
 			}
 			break;
 		default:
@@ -383,13 +398,14 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			                        input) + 1;
 
 		/* shift the contents */
-		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
-			offset += keystatus;
+		if (action == SHIFTDOWN || action == SHIFTUP)
+			offset += action;
 
 		if (subcount > 1)
 			rotate_array(filtered+1, subcount-1, offset);
 
-		switch(keystatus) {
+		/* exit (maybe) */
+		switch(action) {
 		case EXIT:
 			puts(subcount > 1 ? filtered[1] : input);
 		case TERM:
