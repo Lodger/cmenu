@@ -9,7 +9,6 @@
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
 
-#include "config.h"
 #include "util.h"
 #include "xutil.h"
 
@@ -19,6 +18,26 @@
                   strlen(inputprefix) +\
                   strlen(inputsuffix) +\
                   strlen(inputprompt))
+
+/* default theme */
+char *fontname = "fixed-10:style=bold";
+
+char *inputprompt = "menu";
+char *inputprefix = "\xc2\xbb";
+char *inputsuffix = "\xc2\xab";
+
+/* top, bottom, left, right */
+unsigned padding[] = { 0, 0, 0, 0 };
+unsigned borderwidth = 2;
+
+/* textcolor, stextcolor, bgcolor, sbgcolor, bordercolor */
+char *wincolors[] = {"#000000",
+                     "#ffffff",
+                     "#ffffff",
+                     "#000000",
+                     "#000000"};
+
+int itemsvisible = 0;
 
 enum handle_key_exits {SHIFTDOWN = -1, SHIFTUP = 1, EXIT, TERM};
 enum padding_names {TOP, BOTTOM, LEFT, RIGHT};
@@ -415,15 +434,15 @@ int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 		return 1;
 	}
 	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
-			       wincolors[PRIMARYFG],
-			       &xftv->primaryFG)) {
+	                       wincolors[PRIMARYFG],
+	                       &xftv->primaryFG)) {
 		fprintf(stderr, "Could not allocate color \"%s\"\n",
 			wincolors[PRIMARYFG]);
 		return 2;
 	}
 	if (!XftColorAllocName(xv->display, xv->visual, xv->colormap,
-			       wincolors[ACTIVEFG],
-			       &xftv->activeFG)) {
+	                       wincolors[ACTIVEFG],
+	                       &xftv->activeFG)) {
 		fprintf(stderr, "Could not allocate color \"%s\"\n",
 			wincolors[ACTIVEFG]);
 		return 2;
@@ -498,7 +517,7 @@ int init_x(struct XValues *xv)
 
 int main(int argc, char *argv[])
 {
-	if (parse_arguments(argc, argv) != 0)
+	if (argc > 1 && parse_arguments(argc, argv) != 0)
 		return 1;
 
 	/* read stdin */
