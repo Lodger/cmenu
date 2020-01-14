@@ -351,7 +351,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	input[0] = '\0';
 
 	char *filtered[count+1];
-	*filtered = malloc(LENINPUT * sizeof(char));
+	*filtered = malloc(LENINPUT);
 
 	if (*filtered == NULL) {
 		fprintf(stderr, "Could not allocate bytes\n");
@@ -359,10 +359,10 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	}
 
 	XEvent e;
-	int action, offset, subcount;
+	int keystatus, offset, subcount;
 	unsigned hover; /* mouse selection */
 
-	action = 0; /* do nothing */
+	keystatus = 0; /* do nothing */
 	hover = 0;
 	offset = subcount = 0;
 	for (;;) {
@@ -373,7 +373,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		case Expose:
 			break;
 		case KeyPress:
-			action = handle_key(xv, e.xkey, input);
+			keystatus = handle_key(xv, e.xkey, input);
 			break;
 		case MotionNotify:
 			hover = handle_motion(xv, wv, xftv, filtered, subcount,
@@ -382,7 +382,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		case ButtonPress:
 			if (hover > 0 && hover <= subcount) {
 				puts(filtered[hover]);
-				action = TERM;
+				keystatus = TERM;
 			}
 			break;
 		default:
@@ -398,14 +398,14 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			                        input) + 1;
 
 		/* shift the contents */
-		if (action == SHIFTDOWN || action == SHIFTUP)
-			offset += action;
+		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
+			offset += keystatus;
 
 		if (subcount > 1)
 			rotate_array(filtered+1, subcount-1, offset);
 
 		/* exit (maybe) */
-		switch(action) {
+		switch(keystatus) {
 		case EXIT:
 			puts(subcount > 1 ? filtered[1] : input);
 		case TERM:
