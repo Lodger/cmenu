@@ -162,6 +162,10 @@ void draw_items(struct XftValues *xftv, char **items, unsigned count)
 		draw_string(xftv, *items++, index, xftv->primaryFG);
 }
 
+/* Moves and positions the window on the screen so that it can display as many
+ * items as possible without going off the side of the screen. Returns the
+ * number of items it managed to fit.
+ */
 int move_and_resize(struct XValues *xv, struct WinValues *wv,
                     struct XftValues *xftv, char **items, unsigned count)
 {
@@ -228,7 +232,6 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 	/* update window location */
 	XConfigureWindow(xv->display, wv->window, valuemask, &wv->xwc);
-
 	return available;
 }
 
@@ -351,20 +354,18 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	input[0] = '\0';
 
 	char *filtered[count+1];
-	*filtered = malloc(LENINPUT);
-
-	if (*filtered == NULL) {
+	if ((*filtered = malloc(LENINPUT)) == NULL) {
 		fprintf(stderr, "Could not allocate bytes\n");
 		return;
 	}
 
 	XEvent e;
 	int keystatus, offset, subcount;
-	unsigned hover; /* mouse selection */
+	unsigned hover;
 
 	keystatus = 0; /* do nothing */
-	hover = 0;
-	offset = subcount = 0;
+	hover = 0;     /* initially, the mouse has selected nothing */
+	offset = 0;    /* no item rotation */
 	for (;;) {
 		XMapWindow(xv->display, wv->window);
 		XNextEvent(xv->display, &e);
