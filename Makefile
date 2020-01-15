@@ -17,7 +17,7 @@ debug: $(TARGET)
 
 clean:
 	@echo "cleaning..."
-	rm -f $(DEPS)
+	rm -f *.o
 	rm -f $(DESTDIR)/$(TARGET)
 	rm -f $(MANDIR)/$(MANPAGE)
 	@echo "done."

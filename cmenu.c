@@ -401,6 +401,8 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		/* shift the contents */
 		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
 			offset += keystatus;
+		else
+			offset = 0;
 
 		if (subcount > 1)
 			rotate_array(filtered+1, subcount-1, offset);
