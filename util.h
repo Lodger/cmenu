@@ -9,4 +9,4 @@
 int read_stdin(char ***lines);
 void free_lines(char **lines, int count);
 void rotate_array(char **array, unsigned count, int offset);
-int filter_input(char **source, unsigned count, char **out, char *filter);
+int filter(char **source, unsigned count, char **out, char *filter);

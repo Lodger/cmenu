@@ -56,19 +56,18 @@ void free_lines(char **lines, int count)
 	free(lines);
 }
 
-int filter_input(char **source, unsigned count, char **out, char *filter)
+int filter(char **in, unsigned count, char **out, char *filter)
 {
-	unsigned filtered;
+	unsigned fcount;
 
-	filtered = 0;
-	for (; count--; ++source)
-		if (filter == NULL ||
-		    (strlen(filter) && strstr(*source, filter) == *source)) {
-			*out++ = *source;
-			++filtered;
+	fcount = 0;
+	for (; count--; ++in)
+		if (strstr(*in, filter) == *in) {
+			*out++ = *in;
+			++fcount;
 		}
 
-	return filtered;
+	return fcount;
 }
 
 void rotate_array(char **array, unsigned count, int offset)

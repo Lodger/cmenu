@@ -37,7 +37,7 @@ char *wincolors[] = {"#000000",
                      "#000000",
                      "#000000"};
 
-int itemsvisible = 0;
+int showall = 0;
 
 enum handle_key_exits {SHIFTDOWN = -1, SHIFTUP = 1, EXIT, TERM};
 enum padding_names {TOP, BOTTOM, LEFT, RIGHT};
@@ -74,7 +74,7 @@ unsigned parse_arguments(int argc, char **argv)
 	for (int i = 1; i < argc; ++i) {
 		if (!strcmp(argv[i], "-v") ||
 		    !strcmp(argv[i], "--visible"))
-			itemsvisible = 1;
+			showall = 1;
 		else if (!strcmp(argv[i], "-f") ||
 			 !strcmp(argv[i], "--font"))
 			fontname = argv[++i];
@@ -178,7 +178,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	longest = 0;
 	while (count--) {
 		XftTextExtentsUtf8(xv->display, xftv->font, (FcChar8 *) *items,
-				   strlen(*items), &ext);
+		                   strlen(*items), &ext);
 		if (ext.width > longest)
 			longest = ext.width;
 
@@ -282,8 +282,7 @@ unsigned handle_motion(struct XValues *xv, struct WinValues *wv,
 	return current;
 }
 
-/*
- * a long function, but it evaluates the key pressed and either adds to the
+/* a long function, but it evaluates the key pressed and either adds to the
  * input line, subtracts from it, or returns either TERM (exit without output),
  * EXIT (exit normally), or SHIFTUP/SHIFTDOWN to rotate the menu items.
  */
@@ -363,9 +362,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 	int keystatus, offset, subcount;
 	unsigned hover;
 
-	keystatus = 0; /* do nothing */
-	hover = 0;     /* initially, the mouse has selected nothing */
-	offset = 0;    /* no item rotation */
+	keystatus = hover = offset = 0; /* do nothing */
 	for (;;) {
 		XMapWindow(xv->display, wv->window);
 		XNextEvent(xv->display, &e);
@@ -391,12 +388,13 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		}
 
 		/* update the contents */
-		if (itemsvisible && !strlen(input))
-			subcount = filter_input(items, count, filtered+1,
-			                        NULL) + 1;
-		else
-			subcount = filter_input(items, count, filtered+1,
-			                        input) + 1;
+
+		if (!strlen(input)) {
+			subcount = showall ? count : 0;
+			filter(items, count, filtered + 1, "");
+		} else {
+			subcount = filter(items, count, filtered + 1, input);
+		}
 
 		/* shift the contents */
 		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
@@ -405,12 +403,12 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 			offset = 0;
 
 		if (subcount > 1)
-			rotate_array(filtered+1, subcount-1, offset);
+			rotate_array(filtered+1, subcount, offset);
 
 		/* exit (maybe) */
 		switch(keystatus) {
 		case EXIT:
-			puts(subcount > 1 ? filtered[1] : input);
+			puts(subcount > 0 ? filtered[1] : input);
 		case TERM:
 			free(*filtered);
 			return;
@@ -420,7 +418,7 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		snprintf(*filtered, LENINPUT, "%s%s%s%s",
 		         inputprompt, inputprefix, input, inputsuffix);
 
-		redraw_menu(xv, wv, xftv, filtered, subcount);
+		redraw_menu(xv, wv, xftv, filtered, subcount + 1);
 	}
 }
 
@@ -539,10 +537,8 @@ int main(int argc, char *argv[])
 	if (argc > 1 && parse_arguments(argc, argv) != 0)
 		return 1;
 
-	/* read stdin */
 	int count;
 	char **items;
-
 	count = read_stdin(&items);
 
 	struct XValues xv;
