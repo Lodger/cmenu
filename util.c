@@ -41,7 +41,7 @@ int read_stdin(char ***lines)
 		}
 	}
 
-	(*lines)[read] = '\0';
+	(*lines)[read] = NULL;
 	free(linebuf);
 	return read;
 }

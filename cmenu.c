@@ -39,16 +39,16 @@ char *wincolors[] = {"#000000",
 
 int showall = 0;
 
-enum handle_key_exits {SHIFTDOWN = -1, SHIFTUP = 1, EXIT, TERM};
+enum handle_key_exits {SHIFTDOWN = -1, SHIFTUP = 1, NOUPDATE, EXIT, TERM};
 enum padding_names {TOP, BOTTOM, LEFT, RIGHT};
 enum colors {PRIMARYFG, ACTIVEFG, PRIMARYBG, ACTIVEBG, BORDER};
 
 struct XValues {
 	Display *display;
-	int screen_num;
+	int nscreen;
 	Window root;
-	unsigned screen_width;
-	unsigned screen_height;
+	unsigned screenwidth;
+	unsigned screenheight;
 	Visual *visual;
 	Colormap colormap;
 };
@@ -191,12 +191,12 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 
 	/* Y axis */
 	if (wv->xwc.height + (borderwidth * 2) >
-	    xv->screen_height - wv->xwc.y) {
-		if (wv->xwc.height + (borderwidth * 2) > xv->screen_height) {
+	    xv->screenheight - wv->xwc.y) {
+		if (wv->xwc.height + (borderwidth * 2) > xv->screenheight) {
 			wv->xwc.y = 0;
 
 			/* clip the menu items */
-			available = (xv->screen_height - wv->xwc.y -
+			available = (xv->screenheight - wv->xwc.y -
 			             padding[TOP] - padding[BOTTOM] -
 			             (borderwidth* 2)) /
 			            xftv->font->height;
@@ -204,7 +204,7 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 			wv->xwc.height = xftv->font->height * available +
 			                 padding[TOP] + padding[BOTTOM];
 		} else {
-			wv->xwc.y = xv->screen_height - wv->xwc.height -
+			wv->xwc.y = xv->screenheight - wv->xwc.height -
 			            (borderwidth * 2);
 		}
 
@@ -214,12 +214,12 @@ int move_and_resize(struct XValues *xv, struct WinValues *wv,
 	}
 
 	/* X axis */
-	if (wv->xwc.width + (borderwidth * 2) > xv->screen_width - wv->xwc.x) {
-		if (wv->xwc.width + (borderwidth * 2) > xv->screen_width) {
+	if (wv->xwc.width + (borderwidth * 2) > xv->screenwidth - wv->xwc.x) {
+		if (wv->xwc.width + (borderwidth * 2) > xv->screenwidth) {
 			wv->xwc.x = 0;
-			wv->xwc.width = xv->screen_width;
+			wv->xwc.width = xv->screenwidth;
 		} else {
-			wv->xwc.x = xv->screen_width - wv->xwc.width -
+			wv->xwc.x = xv->screenwidth - wv->xwc.width -
 			            (borderwidth * 2);
 		}
 
@@ -317,6 +317,7 @@ int handle_key(struct XValues *xv, XKeyEvent xkey, char *inputline)
 	case XK_Control_L: case XK_Control_R:
 	case XK_Shift_R:   case XK_Shift_L:
 	case XK_Alt_L:     case XK_Alt_R:
+		return NOUPDATE;
 		break;
 	case XK_Escape:
 		return TERM;
@@ -399,8 +400,12 @@ void menu_run(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv,
 		/* shift the contents */
 		if (keystatus == SHIFTDOWN || keystatus == SHIFTUP)
 			offset += keystatus;
-		else
+		else if (keystatus != NOUPDATE)
 			offset = 0;
+		else
+			continue; /* should go in the switch statement below,
+			           * but this method is slightly more efficient
+			           */
 
 		if (subcount > 1)
 			rotate_array(filtered+1, subcount, offset);
@@ -445,7 +450,7 @@ void terminate_x(struct XValues *xv, struct WinValues *wv)
 
 int init_xft(struct XValues *xv, struct WinValues *wv, struct XftValues *xftv)
 {
-	xftv->font = XftFontOpenName(xv->display, xv->screen_num, fontname);
+	xftv->font = XftFontOpenName(xv->display, xv->nscreen, fontname);
 	if (!xftv->font) {
 		fprintf(stderr, "Could not open font \"%s\"\n", fontname);
 		return 1;
@@ -522,12 +527,12 @@ int init_x(struct XValues *xv)
 		fputs("Could not connect to the X server", stderr);
 		return 1;
 	}
-	xv->screen_num = DefaultScreen(xv->display);
-	xv->root = RootWindow(xv->display, xv->screen_num);
-	xv->visual = DefaultVisual(xv->display, xv->screen_num);
-	xv->colormap = DefaultColormap(xv->display, xv->screen_num);
-	xv->screen_height = DisplayHeight(xv->display, xv->screen_num);
-	xv->screen_width = DisplayWidth(xv->display, xv->screen_num);
+	xv->nscreen = DefaultScreen(xv->display);
+	xv->root = RootWindow(xv->display, xv->nscreen);
+	xv->visual = DefaultVisual(xv->display, xv->nscreen);
+	xv->colormap = DefaultColormap(xv->display, xv->nscreen);
+	xv->screenheight = DisplayHeight(xv->display, xv->nscreen);
+	xv->screenwidth = DisplayWidth(xv->display, xv->nscreen);
 
 	return 0;
 }
